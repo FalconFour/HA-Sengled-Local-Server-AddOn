@@ -46,6 +46,14 @@ bashio::log.info "Starting Mosquitto MQTT broker on port 28527..."
 mosquitto -c "${MOSQUITTO_CONFIG_DIR}/mosquitto.conf" &
 MOSQUITTO_PID=$!
 
+# Wait a moment and check if mosquitto started successfully
+sleep 2
+if ! kill -0 "${MOSQUITTO_PID}" 2>/dev/null; then
+    bashio::log.error "❌ Mosquitto failed to start! Check configuration."
+    exit 1
+fi
+bashio::log.info "✅ Mosquitto MQTT broker started successfully"
+
 # Start HTTP server
 bashio::log.info "Starting HTTP server on port 54448..."
 cd /usr/local/src
@@ -55,6 +63,14 @@ LOG_LEVEL="${LOG_LEVEL}" python3 -m uvicorn http_server:app \
     --log-level "${LOG_LEVEL,,}" \
     --access-log &
 HTTP_PID=$!
+
+# Wait a moment and check if HTTP server started successfully
+sleep 2
+if ! kill -0 "${HTTP_PID}" 2>/dev/null; then
+    bashio::log.error "❌ HTTP server failed to start!"
+    exit 1
+fi
+bashio::log.info "✅ HTTP server started successfully"
 
 bashio::log.info "🚀 All services started successfully!"
 bashio::log.info "📡 HTTP endpoints available at port 54448"

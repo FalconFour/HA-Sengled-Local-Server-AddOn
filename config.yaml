@@ -5,8 +5,6 @@ slug: "sengled_local"
 init: false
 arch:
   - amd64
-  - armhf
-  - armv7
   - aarch64
 startup: services
 boot: auto

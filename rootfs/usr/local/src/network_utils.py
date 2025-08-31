@@ -1,207 +1,229 @@
-#!/usr/bin/env python3
-"""
-Network utilities for IP detection and validation
-"""
+# network_utils.py
+import os
+import json
 import socket
+import ipaddress
 import subprocess
 import logging
-from typing import Optional, List
+from typing import Optional, Dict, Any, List
+from urllib.request import Request, urlopen
+from urllib.error import URLError, HTTPError
+
 import psutil
 
 logger = logging.getLogger(__name__)
 
+SUPERVISOR_BASE = "http://supervisor"
+SUPERVISOR_TOKEN = os.environ.get("SUPERVISOR_TOKEN")
+
+
+# -------------------------
+# Internal helpers (Supervisor)
+# -------------------------
+
+def _http_supervisor_get(path: str, timeout: float = 2.0) -> Optional[Dict[str, Any]]:
+    """Minimal Supervisor GET helper. Returns parsed JSON 'data' or None."""
+    if not SUPERVISOR_TOKEN:
+        logger.debug("SUPERVISOR_TOKEN not set; skipping Supervisor lookup.")
+        return None
+
+    url = f"{SUPERVISOR_BASE}{path}"
+    req = Request(url, headers={"Authorization": f"Bearer {SUPERVISOR_TOKEN}"}, method="GET")
+    try:
+        with urlopen(req, timeout=timeout) as resp:
+            if resp.status != 200:
+                logger.debug(f"Supervisor GET {path} returned HTTP {resp.status}")
+                return None
+            raw = resp.read().decode("utf-8")
+            data = json.loads(raw)
+            result = data.get("data") if isinstance(data, dict) else None
+            if result is None:
+                logger.debug(f"Supervisor GET {path} had unexpected payload: {raw[:200]}...")
+            return result
+    except (URLError, HTTPError, TimeoutError, ValueError) as e:
+        logger.debug(f"Supervisor GET {path} failed: {e}")
+        return None
+
+
+def _pick_ipv4(addresses: List[str]) -> Optional[str]:
+    """
+    Given a list of CIDR strings, return a single IPv4 address (no CIDR).
+    Prefer RFC1918 private space; else first IPv4.
+    """
+    ipv4s: List[ipaddress.IPv4Address] = []
+    for cidr in addresses:
+        try:
+            ip_str = cidr.split("/", 1)[0]
+            ip_obj = ipaddress.ip_address(ip_str)
+            if isinstance(ip_obj, ipaddress.IPv4Address):
+                ipv4s.append(ip_obj)
+        except ValueError:
+            continue
+
+    if not ipv4s:
+        return None
+
+    for ip in ipv4s:
+        if ip.is_private:
+            return str(ip)
+    return str(ipv4s[0])
+
+
+def _get_ipv4_from_default_interface() -> Optional[str]:
+    """Ask Supervisor for primary/default interface and pick an IPv4."""
+    data = _http_supervisor_get("/network/interface/default/info")
+    if not data:
+        return None
+
+    if not data.get("connected"):
+        logger.debug("Supervisor default interface reports connected=false.")
+        return None
+
+    ipv4 = (data.get("ipv4") or {}).get("addresses") or []
+    picked = _pick_ipv4(ipv4)
+    if picked:
+        logger.info(f"Supervisor default interface provided IPv4 {picked}")
+        return picked
+
+    logger.debug("Supervisor default interface had no usable IPv4.")
+    return None
+
+
+def _get_ipv4_from_network_info() -> Optional[str]:
+    """Fallback: scan Supervisor /network/info for a primary+connected iface with IPv4."""
+    data = _http_supervisor_get("/network/info")
+    if not data:
+        return None
+
+    # First pass: primary+connected
+    for iface in data.get("interfaces", []):
+        if iface.get("primary") and iface.get("connected"):
+            ipv4 = (iface.get("ipv4") or {}).get("addresses") or []
+            picked = _pick_ipv4(ipv4)
+            if picked:
+                logger.info(f"Supervisor network info picked primary iface {iface.get('interface')} IPv4 {picked}")
+                return picked
+
+    # Second pass: any connected with IPv4
+    for iface in data.get("interfaces", []):
+        if iface.get("connected"):
+            ipv4 = (iface.get("ipv4") or {}).get("addresses") or []
+            picked = _pick_ipv4(ipv4)
+            if picked:
+                logger.info(f"Supervisor network info picked connected iface {iface.get('interface')} IPv4 {picked}")
+                return picked
+
+    logger.debug("Supervisor network info had no usable connected IPv4.")
+    return None
+
+
+# -------------------------
+# Last-resort container heuristics
+# -------------------------
+
+def _container_guess_ipv4() -> Optional[str]:
+    """
+    Try to infer an outward-facing IPv4 from inside the container.
+    This is deliberately last-resort behind Supervisor truth.
+    """
+    # UDP "connect" trick—no packets need to be sent
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("1.1.1.1", 53))
+            ip = s.getsockname()[0]
+            ip_obj = ipaddress.ip_address(ip)
+            if isinstance(ip_obj, ipaddress.IPv4Address):
+                logger.warning(f"Falling back to container IPv4 guess via UDP connect: {ip}")
+                return ip
+    except Exception as e:
+        logger.debug(f"Container UDP connect trick failed: {e}")
+
+    # Scan interfaces; prefer private IPv4
+    try:
+        for name, addrs in psutil.net_if_addrs().items():
+            for a in addrs:
+                if a.family == socket.AF_INET:
+                    try:
+                        ip_obj = ipaddress.ip_address(a.address)
+                        if isinstance(ip_obj, ipaddress.IPv4Address) and ip_obj.is_private:
+                            logger.warning(f"Falling back to container interface {name} IPv4 {a.address}")
+                            return a.address
+                    except ValueError:
+                        continue
+    except Exception as e:
+        logger.debug(f"Container interface scan failed: {e}")
+
+    return None
+
+
+# -------------------------
+# Public API
+# -------------------------
 
 def get_addon_ip() -> str:
     """
-    Intelligent IP detection for the add-on container.
-    Tries multiple methods to find the best IP address to advertise to bulbs.
-    
-    Returns:
-        str: The IP address that bulbs should use to connect back to this add-on
+    Robust IPv4 for LAN clients (bulbs). Prefers Supervisor's view of the host.
     """
-    methods = [
-        _get_ip_from_default_route,
-        _get_ip_from_docker_network,
-        _get_ip_from_hostname_resolution,
-        _get_ip_from_network_interfaces,
-        _get_ip_from_test_connection
-    ]
-    
-    for method in methods:
-        try:
-            ip = method()
-            if ip and _validate_ip(ip) and not _is_loopback_ip(ip):
-                logger.info(f"Detected add-on IP using {method.__name__}: {ip}")
-                return ip
-        except Exception as e:
-            logger.debug(f"IP detection method {method.__name__} failed: {e}")
-            continue
-    
-    # Fallback to a reasonable default
-    logger.warning("Could not detect add-on IP, using fallback: 172.30.32.1")
-    return "172.30.32.1"
+    # 1) Preferred
+    ip = _get_ipv4_from_default_interface()
+    if ip:
+        return ip
 
+    # 2) Fallback via /network/info
+    ip = _get_ipv4_from_network_info()
+    if ip:
+        return ip
 
-def _get_ip_from_default_route() -> Optional[str]:
-    """Get IP from the default route interface"""
-    try:
-        # Get the default route
-        result = subprocess.run(['ip', 'route', 'show', 'default'], 
-                              capture_output=True, text=True, timeout=5)
-        if result.returncode != 0:
-            return None
-        
-        # Parse the output to get the interface
-        lines = result.stdout.strip().split('\n')
-        for line in lines:
-            if 'default via' in line:
-                parts = line.split()
-                if 'dev' in parts:
-                    interface = parts[parts.index('dev') + 1]
-                    return _get_ip_from_interface(interface)
-        return None
-    except Exception:
-        return None
+    # 3) Last-resort: container heuristics
+    ip = _container_guess_ipv4()
+    if ip:
+        return ip
 
-
-def _get_ip_from_docker_network() -> Optional[str]:
-    """Get IP from Docker bridge network (common in HA add-ons)"""
-    try:
-        # Check for Docker bridge interfaces
-        for interface_name in ['docker0', 'br-+', 'hassio']:
-            ip = _get_ip_from_interface(interface_name)
-            if ip:
-                return ip
-        return None
-    except Exception:
-        return None
-
-
-def _get_ip_from_hostname_resolution() -> Optional[str]:
-    """Get IP by resolving the container hostname"""
-    try:
-        hostname = socket.gethostname()
-        return socket.gethostbyname(hostname)
-    except Exception:
-        return None
-
-
-def _get_ip_from_network_interfaces() -> Optional[str]:
-    """Get IP from network interfaces, prioritizing non-loopback"""
-    try:
-        interfaces = psutil.net_if_addrs()
-        
-        # Priority order for interface types
-        preferred_prefixes = ['eth', 'en', 'wlan', 'docker', 'br-', 'hassio']
-        
-        candidates = []
-        
-        for interface_name, addresses in interfaces.items():
-            for addr in addresses:
-                if addr.family == socket.AF_INET:  # IPv4
-                    ip = addr.address
-                    if _validate_ip(ip) and not _is_loopback_ip(ip):
-                        # Score based on interface name preference
-                        score = 0
-                        for i, prefix in enumerate(preferred_prefixes):
-                            if interface_name.startswith(prefix):
-                                score = len(preferred_prefixes) - i
-                                break
-                        candidates.append((score, ip, interface_name))
-        
-        # Return the highest scored IP
-        if candidates:
-            candidates.sort(reverse=True, key=lambda x: x[0])
-            best_ip = candidates[0][1]
-            best_interface = candidates[0][2]
-            logger.info(f"Selected IP {best_ip} from interface {best_interface}")
-            return best_ip
-        
-        return None
-    except Exception:
-        return None
-
-
-def _get_ip_from_test_connection() -> Optional[str]:
-    """Get local IP by creating a test connection to a public DNS server"""
-    try:
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-            s.settimeout(5)
-            # Connect to Google's DNS (doesn't actually send data)
-            s.connect(("8.8.8.8", 80))
-            return s.getsockname()[0]
-    except Exception:
-        return None
-
-
-def _get_ip_from_interface(interface_name: str) -> Optional[str]:
-    """Get IP address from a specific network interface"""
-    try:
-        interfaces = psutil.net_if_addrs()
-        if interface_name in interfaces:
-            for addr in interfaces[interface_name]:
-                if addr.family == socket.AF_INET:  # IPv4
-                    return addr.address
-        return None
-    except Exception:
-        return None
-
-
-def _validate_ip(ip: str) -> bool:
-    """Validate that the string is a proper IPv4 address"""
-    try:
-        parts = ip.split('.')
-        if len(parts) != 4:
-            return False
-        for part in parts:
-            if not (0 <= int(part) <= 255):
-                return False
-        return True
-    except (ValueError, AttributeError):
-        return False
-
-
-def _is_loopback_ip(ip: str) -> bool:
-    """Check if IP is a loopback address (127.x.x.x)"""
-    return ip.startswith('127.')
+    logger.error("No IPv4 address could be determined; returning 0.0.0.0")
+    return "0.0.0.0"
 
 
 def get_network_info() -> dict:
     """
-    Get comprehensive network information for diagnostics
-    
-    Returns:
-        dict: Network information including interfaces, IPs, and routes
+    Container-centric diagnostics for add-on UI:
+    - Enumerate interfaces (IPv4 only) as seen from inside the container
+    - Show routing table from the container
+    - Include the currently detected LAN IPv4 (via get_addon_ip) for convenience
     """
     info = {
-        'detected_ip': get_addon_ip(),
-        'hostname': socket.gethostname(),
-        'interfaces': {},
-        'routes': []
+        "detected_ip": get_addon_ip(),   # keep: handy to display in the UI
+        "hostname": socket.gethostname(),
+        "interfaces": {},
+        "routes": []
     }
-    
+
+    # Interfaces (container view)
     try:
-        # Get all network interfaces
         interfaces = psutil.net_if_addrs()
         for name, addresses in interfaces.items():
-            info['interfaces'][name] = []
+            info["interfaces"][name] = []
             for addr in addresses:
-                if addr.family == socket.AF_INET:  # IPv4
-                    info['interfaces'][name].append({
-                        'ip': addr.address,
-                        'netmask': addr.netmask,
-                        'broadcast': addr.broadcast
+                if addr.family == socket.AF_INET:  # IPv4 only for your bulbs
+                    info["interfaces"][name].append({
+                        "ip": addr.address,
+                        "netmask": addr.netmask,
+                        "broadcast": addr.broadcast
                     })
+        logger.debug(f"Collected {len(info['interfaces'])} interfaces from container view.")
     except Exception as e:
         logger.error(f"Failed to get interface info: {e}")
-    
+
+    # Routing (container view)
     try:
-        # Get routing table
-        result = subprocess.run(['ip', 'route', 'show'], 
-                              capture_output=True, text=True, timeout=5)
+        result = subprocess.run(
+            ["ip", "route", "show"], capture_output=True, text=True, timeout=5
+        )
         if result.returncode == 0:
-            info['routes'] = result.stdout.strip().split('\n')
+            info["routes"] = [line for line in result.stdout.strip().split("\n") if line]
+            logger.debug(f"Collected {len(info['routes'])} routes from container view.")
+        else:
+            logger.debug(f"'ip route show' returned code {result.returncode}: {result.stderr.strip()}")
     except Exception as e:
         logger.debug(f"Failed to get route info: {e}")
-    
+
     return info

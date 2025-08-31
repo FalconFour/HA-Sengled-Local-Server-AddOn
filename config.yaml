@@ -46,3 +46,4 @@ schema:
   cert_common_name: str
 image: "ghcr.io/falconfour/sengled-local-server-{arch}"
 url: "https://github.com/FalconFour/HA-Sengled-Local-Server-AddOn"
+webui: https://[HOST]:[PORT:54448]

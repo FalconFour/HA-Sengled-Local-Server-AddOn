@@ -19,6 +19,9 @@ bashio::log.info "Setting up directory structure..."
 mkdir -p "${MOSQUITTO_CONFIG_DIR}" "${CERTS_DIR}" /data/config
 chown -R mosquitto:mosquitto "${MOSQUITTO_CONFIG_DIR}"
 
+# Activate virtual environment
+export PATH="/opt/venv/bin:$PATH"
+
 # Generate certificates if needed
 if [[ $(bashio::config 'auto_generate_certs') == true ]]; then
     if [[ ! -f "${CERTS_DIR}/ca.crt" ]] || [[ ! -f "${CERTS_DIR}/server.crt" ]]; then

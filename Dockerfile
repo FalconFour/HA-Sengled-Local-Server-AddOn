@@ -9,6 +9,7 @@ RUN apk add --no-cache \
     python3 \
     python3-dev \
     py3-pip \
+    py3-virtualenv \
     gcc \
     musl-dev \
     libffi-dev \
@@ -20,7 +21,10 @@ RUN apk add --no-cache \
 
 # Install Python dependencies
 COPY rootfs/usr/local/requirements.txt /tmp/
-RUN pip3 install --no-cache-dir --break-system-packages -r /tmp/requirements.txt
+RUN \
+    python3 -m venv /opt/venv \
+    && . /opt/venv/bin/activate \
+    && pip3 install --no-cache-dir -r /tmp/requirements.txt
 
 # Install tempio
 ARG TEMPIO_VERSION BUILD_ARCH

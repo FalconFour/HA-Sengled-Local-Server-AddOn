@@ -26,23 +26,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Get information
-        id: info
-        uses: home-assistant/actions/helpers/info@master
-
-      - name: Check if add-on should be built
-        id: check
-        run: |
-          if [[ "${{ steps.info.outputs.changed_files }}" =~ (requirements.txt|Dockerfile|build.yaml|config.yaml|rootfs/) ]]; then
-            echo "build=true" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.event_name }}" == "release" ]]; then
-            echo "build=true" >> $GITHUB_OUTPUT
-          else
-            echo "build=false" >> $GITHUB_OUTPUT
-          fi
-
       - name: Login to GitHub Container Registry
-        if: steps.check.outputs.build == 'true' && github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -50,7 +35,6 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build Add-on
-        if: steps.check.outputs.build == 'true'
         uses: home-assistant/builder@master
         with:
           args: |

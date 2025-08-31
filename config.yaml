@@ -44,5 +44,5 @@ schema:
   log_level: list(debug|info|warning|error)
   auto_generate_certs: bool
   cert_common_name: str
-image: "ghcr.io/falconfour/sengled-local-server"
+image: "ghcr.io/falconfour/sengled-local-server-{arch}"
 url: "https://github.com/FalconFour/HA-Sengled-Local-Server-AddOn"

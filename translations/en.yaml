@@ -1,0 +1,147 @@
+---
+configuration:
+  mqtt_broker_host:
+    name: MQTT Broker Host
+    description: >-
+      Hostname or IP address of your existing MQTT broker (e.g., core-mosquitto, 
+      192.168.1.100). This is where bulb data will be forwarded.
+  mqtt_broker_port:
+    name: MQTT Broker Port
+    description: >-
+      Port number of your existing MQTT broker. Default is 1883 for non-SSL 
+      connections, 8883 for SSL connections.
+  mqtt_username:
+    name: MQTT Username
+    description: >-
+      Username for authenticating with your MQTT broker. Leave empty if your 
+      broker allows anonymous connections.
+  mqtt_password:
+    name: MQTT Password
+    description: >-
+      Password for authenticating with your MQTT broker. Leave empty if not required.
+  mqtt_ssl:
+    name: Enable MQTT SSL/TLS
+    description: >-
+      Enable if your MQTT broker requires SSL/TLS connections. Make sure your 
+      broker supports SSL and the port is correct (usually 8883).
+  enable_bridge:
+    name: Enable MQTT Bridge
+    description: >-
+      Enable bridging to forward bulb topics to your existing MQTT broker. 
+      Disable if you want the add-on to operate standalone.
+  log_level:
+    name: Log Level
+    description: >-
+      Set the logging verbosity. Debug provides the most detail for 
+      troubleshooting, while Error shows only critical issues.
+  auto_generate_certs:
+    name: Auto-Generate SSL Certificates
+    description: >-
+      Automatically generate SSL certificates for the MQTT broker. Disable if 
+      you want to provide your own certificates.
+  cert_common_name:
+    name: Certificate Common Name
+    description: >-
+      Common name for the generated SSL certificate. This should match the 
+      hostname or IP that bulbs will use to connect.
+
+network:
+  54448/tcp: "HTTP Server (Sengled provisioning endpoints)"
+  28527/tcp: "MQTT Broker with SSL (Sengled bulb connections)"
+
+options:
+  log_level:
+    debug: Debug
+    info: Information
+    warning: Warning
+    error: Error Only
+
+addon:
+  name: Sengled Local Server
+  description: >-
+    Keep your Sengled bulbs local! This add-on provides the essential HTTP and 
+    MQTT services needed to operate Sengled WiFi bulbs without cloud connectivity.
+    
+    🔦 **Vibe-coded in Claude Code by Matt Falcon** - contribute if you can do better!
+    
+    💡 **Features:**
+    • HTTP server for bulb provisioning (ports "bulbs" 28527 & "light" 54448)
+    • SSL-enabled MQTT broker with automatic certificate generation
+    • Native bridge to your existing Home Assistant MQTT broker
+    • Real-time dashboard for monitoring connections and activity
+    • Zero-config operation with intelligent defaults
+    
+    💡 **How it works:**
+    1. During WiFi setup, point your bulbs to this add-on's HTTP server
+    2. Bulbs receive MQTT connection info and SSL certificates
+    3. Bulbs connect to the local MQTT broker on port 28527
+    4. Topics are automatically bridged to your HA MQTT broker
+    5. Use standard Home Assistant MQTT integrations to control bulbs
+    
+    🏠 **Perfect for privacy-focused smart homes!**
+
+documentation:
+  getting_started: >-
+    ## Getting Started
+    
+    1. **Configure MQTT Bridge**: Set your existing MQTT broker details in the 
+       configuration. For Home Assistant OS users, use "core-mosquitto" as the host.
+    
+    2. **Start the Add-on**: The add-on will automatically generate SSL certificates 
+       and start both HTTP (54448) and MQTT (28527) services.
+    
+    3. **Setup Your Bulbs**: During WiFi configuration, use these URLs:
+       - bimqtt: `http://YOUR_HA_IP:54448/bimqtt`
+       - accessCloud: `http://YOUR_HA_IP:54448/accessCloud.json`
+    
+    4. **Monitor Activity**: Visit the dashboard at `http://YOUR_HA_IP:54448/` 
+       to monitor bulb connections and service health.
+
+  troubleshooting: >-
+    ## Troubleshooting
+    
+    **Bulbs won't connect:**
+    - Verify the add-on is running and ports are accessible
+    - Check that bulbs can reach the HTTP endpoints
+    - Ensure certificates are generated (check logs)
+    
+    **Bridge not working:**
+    - Verify MQTT broker credentials and connectivity  
+    - Check that the target broker is running and accessible
+    - Review bridge configuration in logs
+    
+    **Certificate errors:**
+    - Try restarting the add-on to regenerate certificates
+    - Verify the common name matches your setup
+    - Check certificate file permissions
+    
+    **Need help?** Check the dashboard at port 54448 for real-time diagnostics!
+
+  ports_explanation: >-
+    ## Port Numbers Explained
+    
+    This add-on uses creatively chosen port numbers:
+    - **28527** ("bulbs" on phone keypad) - MQTT broker with SSL
+    - **54448** ("light" on phone keypad) - HTTP provisioning server
+    
+    These non-standard ports provide:
+    ✅ Security through obscurity
+    ✅ Easy remembrance (memorable word mapping)  
+    ✅ Avoidance of common service conflicts
+    ✅ Full control over port assignment during bulb setup
+
+messages:
+  startup:
+    certificates_generated: "SSL certificates generated successfully"
+    certificates_exist: "Using existing SSL certificates"
+    mqtt_broker_started: "MQTT broker started on port 28527"
+    http_server_started: "HTTP server started on port 54448"
+    bridge_configured: "MQTT bridge configured for {host}:{port}"
+    service_ready: "🔦 Sengled Local Server ready! Light up your local network! 💡"
+  
+  errors:
+    mqtt_broker_failed: "Failed to start MQTT broker - check configuration"
+    http_server_failed: "Failed to start HTTP server - port may be in use"
+    certificate_generation_failed: "Failed to generate SSL certificates"
+    bridge_connection_failed: "Failed to connect to MQTT broker: {error}"
+    invalid_configuration: "Invalid configuration: {details}"

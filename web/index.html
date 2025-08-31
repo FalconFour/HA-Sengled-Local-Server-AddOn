@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔦 Sengled Local Server Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1><span class="icon">🔦</span> Sengled Local Server <span class="icon">💡</span></h1>
+                <p class="subtitle">Keep your Sengled bulbs local and secure</p>
+                <div class="status-indicator" id="status-indicator">
+                    <span class="status-dot" id="status-dot"></span>
+                    <span class="status-text" id="status-text">Checking status...</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Dashboard -->
+        <main class="main-content">
+            <!-- Service Overview Cards -->
+            <section class="cards-grid">
+                <div class="card service-card" id="http-card">
+                    <div class="card-header">
+                        <h3><span class="icon">📡</span> HTTP Server</h3>
+                        <div class="service-status" id="http-status">
+                            <span class="status-dot"></span>
+                        </div>
+                    </div>
+                    <div class="card-content">
+                        <p class="service-info">Port: <code>54448</code> ("light")</p>
+                        <p class="service-description">Serves bulb provisioning endpoints</p>
+                        <div class="endpoints">
+                            <div class="endpoint">
+                                <span class="method">GET</span>
+                                <code>/bimqtt</code>
+                            </div>
+                            <div class="endpoint">
+                                <span class="method">GET</span>
+                                <code>/accessCloud.json</code>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card service-card" id="mqtt-card">
+                    <div class="card-header">
+                        <h3><span class="icon">🔌</span> MQTT Broker</h3>
+                        <div class="service-status" id="mqtt-status">
+                            <span class="status-dot"></span>
+                        </div>
+                    </div>
+                    <div class="card-content">
+                        <p class="service-info">Port: <code>28527</code> ("bulbs")</p>
+                        <p class="service-description">SSL-enabled MQTT broker with bridge</p>
+                        <div class="mqtt-stats" id="mqtt-stats">
+                            <div class="stat">
+                                <span class="stat-label">Connected Clients:</span>
+                                <span class="stat-value" id="mqtt-clients">-</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">Bridge Status:</span>
+                                <span class="stat-value" id="bridge-status">-</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card certificate-card" id="cert-card">
+                    <div class="card-header">
+                        <h3><span class="icon">🔒</span> Certificates</h3>
+                        <div class="service-status" id="cert-status">
+                            <span class="status-dot"></span>
+                        </div>
+                    </div>
+                    <div class="card-content">
+                        <div class="cert-info" id="cert-info">
+                            <p>Loading certificate information...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card stats-card">
+                    <div class="card-header">
+                        <h3><span class="icon">📊</span> Statistics</h3>
+                    </div>
+                    <div class="card-content">
+                        <div class="stats-grid" id="stats-grid">
+                            <div class="stat-item">
+                                <div class="stat-number" id="uptime">-</div>
+                                <div class="stat-label">Uptime</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number" id="total-requests">-</div>
+                                <div class="stat-label">Total Requests</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number" id="unique-clients">-</div>
+                                <div class="stat-label">Unique Clients</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number" id="bimqtt-requests">-</div>
+                                <div class="stat-label">bimqtt Requests</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Configuration Section -->
+            <section class="configuration-section">
+                <div class="card config-card">
+                    <div class="card-header">
+                        <h3><span class="icon">⚙️</span> Bridge Configuration</h3>
+                        <button class="btn btn-secondary" id="refresh-config">
+                            <span class="icon">🔄</span> Refresh
+                        </button>
+                    </div>
+                    <div class="card-content">
+                        <div class="config-grid" id="config-grid">
+                            <div class="config-item">
+                                <label>MQTT Broker Host:</label>
+                                <span id="broker-host">-</span>
+                            </div>
+                            <div class="config-item">
+                                <label>MQTT Broker Port:</label>
+                                <span id="broker-port">-</span>
+                            </div>
+                            <div class="config-item">
+                                <label>Bridge Enabled:</label>
+                                <span id="bridge-enabled">-</span>
+                            </div>
+                            <div class="config-item">
+                                <label>SSL Enabled:</label>
+                                <span id="ssl-enabled">-</span>
+                            </div>
+                        </div>
+                        <div class="config-note">
+                            <p><strong>Note:</strong> Configuration changes require add-on restart to take effect. 
+                            Update settings through Home Assistant's add-on configuration page.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Network Information -->
+            <section class="network-section">
+                <div class="card network-card">
+                    <div class="card-header">
+                        <h3><span class="icon">🌐</span> Network Information</h3>
+                        <button class="btn btn-secondary" id="refresh-network">
+                            <span class="icon">🔄</span> Refresh
+                        </button>
+                    </div>
+                    <div class="card-content">
+                        <div class="network-info" id="network-info">
+                            <p>Loading network information...</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Activity Log -->
+            <section class="activity-section">
+                <div class="card activity-card">
+                    <div class="card-header">
+                        <h3><span class="icon">📋</span> Recent Activity</h3>
+                        <button class="btn btn-secondary" id="clear-log">
+                            <span class="icon">🗑️</span> Clear
+                        </button>
+                    </div>
+                    <div class="card-content">
+                        <div class="activity-log" id="activity-log">
+                            <div class="log-entry">
+                                <span class="timestamp">[Starting up]</span>
+                                <span class="message">Dashboard initialized</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>Sengled Local Server v1.0.0 | 
+            <a href="/docs" target="_blank">API Docs</a> | 
+            <a href="/health" target="_blank">Health Check</a> |
+            <a href="https://github.com/FalconFour/HA-Sengled-Local-Server-AddOn" target="_blank">GitHub</a>
+            </p>
+            <p class="footer-subtitle">🔦 Vibe-coded in Claude Code by Matt Falcon 💡</p>
+            <p class="footer-subtitle">🏠 Keeping your smart bulbs local and secure!</p>
+        </footer>
+    </div>
+
+    <!-- Loading overlay -->
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="loading-spinner"></div>
+        <p>Loading dashboard data...</p>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

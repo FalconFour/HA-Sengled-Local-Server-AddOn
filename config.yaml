@@ -1,0 +1,50 @@
+name: "Sengled Local Server"
+description: "Keep your Sengled bulbs local with HTTP + MQTT proxy server"
+version: "1.0.0"
+slug: "sengled_local"
+init: false
+arch:
+  - amd64
+  - armhf
+  - armv7
+  - aarch64
+startup: services
+boot: auto
+hassio_api: true
+hassio_role: default
+host_network: false
+ports:
+  54448/tcp: 54448  # HTTP "light"
+  28527/tcp: 28527  # MQTT "bulbs"
+ports_description:
+  54448/tcp: "HTTP server for bulb provisioning endpoints"
+  28527/tcp: "MQTT broker with SSL for bulb connections"
+map:
+  - type: share
+    read_only: false
+    path: /share
+  - type: ssl
+    read_only: true
+    path: /ssl
+options:
+  mqtt_broker_host: "core-mosquitto"
+  mqtt_broker_port: 1883
+  mqtt_username: ""
+  mqtt_password: ""
+  mqtt_ssl: false
+  enable_bridge: true
+  log_level: "info"
+  auto_generate_certs: true
+  cert_common_name: "sengled.local"
+schema:
+  mqtt_broker_host: str
+  mqtt_broker_port: port
+  mqtt_username: str
+  mqtt_password: password
+  mqtt_ssl: bool
+  enable_bridge: bool
+  log_level: list(debug|info|warning|error)
+  auto_generate_certs: bool
+  cert_common_name: str
+image: "ghcr.io/falconfour/sengled-local-server"
+url: "https://github.com/FalconFour/HA-Sengled-Local-Server-AddOn"

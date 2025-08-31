@@ -1,0 +1,146 @@
+# Mosquitto Configuration for Sengled Local Server
+# Generated from template - do not edit directly
+
+# ==============================================================================
+# Basic Configuration
+# ==============================================================================
+
+# Run as mosquitto user
+user mosquitto
+
+# Process ID file
+pid_file /var/run/mosquitto.pid
+
+# Persistence settings
+persistence true
+persistence_location /data/mosquitto/
+
+# Logging
+log_dest file /var/log/mosquitto/mosquitto.log
+log_dest stdout
+log_type error
+log_type warning
+log_type notice
+log_type information
+log_timestamp true
+
+# Connection messages
+connection_messages true
+
+# ==============================================================================
+# Network Configuration
+# ==============================================================================
+
+# MQTT listener without SSL (for local debugging)
+listener 1883
+protocol mqtt
+allow_anonymous false
+
+# MQTT listener with SSL (for Sengled bulbs)
+listener 28527
+protocol mqtt
+cafile {{ certs_dir }}/ca.crt
+certfile {{ certs_dir }}/server.crt
+keyfile {{ certs_dir }}/server.key
+require_certificate false
+use_identity_as_username false
+allow_anonymous true
+
+# ==============================================================================
+# Security and Access Control
+# ==============================================================================
+
+# Password file (if using authentication)
+{% if mqtt_username and mqtt_password %}
+password_file /data/mosquitto/passwd
+{% endif %}
+
+# Access control list
+acl_file /app/mosquitto/acl.conf
+
+# ==============================================================================
+# Bridge Configuration (if enabled)
+# ==============================================================================
+
+{% if enable_bridge and mqtt_broker_host %}
+# Bridge to Home Assistant MQTT broker
+connection homeassistant_bridge
+address {{ mqtt_broker_host }}:{{ mqtt_broker_port }}
+
+# Authentication for bridge connection
+{% if mqtt_username %}
+username {{ mqtt_username }}
+{% endif %}
+{% if mqtt_password %}
+password {{ mqtt_password }}
+{% endif %}
+
+# SSL/TLS settings for bridge
+{% if mqtt_ssl %}
+bridge_cafile /ssl/ca.crt
+bridge_certfile /ssl/cert.crt
+bridge_keyfile /ssl/key.key
+bridge_tls_version tlsv1.2
+{% endif %}
+
+# Topic patterns to bridge
+# Bridge all wifielement topics (Sengled bulb data)
+topic wifielement/# both 0
+
+# Bridge settings
+cleansession false
+try_private false
+notifications false
+bridge_protocol_version mqttv311
+bridge_attempt_unsubscribe false
+restart_timeout 30
+keepalive_interval 60
+
+# Local prefix (optional, can help organize topics)
+# topic wifielement/# both 0 sengled/ ""
+
+{% endif %}
+
+# ==============================================================================
+# Performance Tuning
+# ==============================================================================
+
+# Maximum concurrent clients
+max_connections -1
+
+# Message size limits
+message_size_limit 268435456
+
+# Keep alive settings
+keepalive_interval 60
+max_keepalive 65535
+
+# Queue settings
+max_queued_messages 1000
+max_inflight_messages 20
+
+# Memory limits
+memory_limit 0
+persistent_client_expiration 1h
+
+# ==============================================================================
+# WebSocket Support (optional)
+# ==============================================================================
+
+# WebSocket listener for web-based clients
+listener 9001
+protocol websockets
+socket_domain ipv4
+
+# ==============================================================================
+# Status and Statistics
+# ==============================================================================
+
+# Enable $SYS tree for monitoring
+sys_interval 10
+
+# ==============================================================================
+# Plugin Support (if needed in future)
+# ==============================================================================
+
+# plugin_dir /usr/lib/mosquitto/plugins/

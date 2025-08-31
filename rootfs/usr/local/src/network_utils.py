@@ -11,7 +11,14 @@ from urllib.error import URLError, HTTPError
 
 import psutil
 
+# Set up logging with same level configuration as http_server
+def get_log_level():
+    """Get log level from environment or default to INFO"""
+    level_name = os.environ.get('LOG_LEVEL', 'info').upper()
+    return getattr(logging, level_name, logging.INFO)
+
 logger = logging.getLogger(__name__)
+logger.setLevel(get_log_level())
 
 SUPERVISOR_BASE = "http://supervisor"
 SUPERVISOR_TOKEN = os.environ.get("SUPERVISOR_TOKEN")
@@ -24,24 +31,30 @@ SUPERVISOR_TOKEN = os.environ.get("SUPERVISOR_TOKEN")
 def _http_supervisor_get(path: str, timeout: float = 2.0) -> Optional[Dict[str, Any]]:
     """Minimal Supervisor GET helper. Returns parsed JSON 'data' or None."""
     if not SUPERVISOR_TOKEN:
-        logger.debug("SUPERVISOR_TOKEN not set; skipping Supervisor lookup.")
+        logger.warning("SUPERVISOR_TOKEN not available - cannot access Supervisor API")
+        logger.debug("This is expected when running outside Home Assistant environment")
         return None
 
     url = f"{SUPERVISOR_BASE}{path}"
+    logger.debug(f"Attempting Supervisor API call: {url}")
     req = Request(url, headers={"Authorization": f"Bearer {SUPERVISOR_TOKEN}"}, method="GET")
     try:
         with urlopen(req, timeout=timeout) as resp:
             if resp.status != 200:
-                logger.debug(f"Supervisor GET {path} returned HTTP {resp.status}")
+                logger.warning(f"Supervisor GET {path} returned HTTP {resp.status}")
                 return None
             raw = resp.read().decode("utf-8")
+            logger.debug(f"Supervisor response for {path}: {raw[:300]}...")
             data = json.loads(raw)
             result = data.get("data") if isinstance(data, dict) else None
             if result is None:
-                logger.debug(f"Supervisor GET {path} had unexpected payload: {raw[:200]}...")
+                logger.warning(f"Supervisor GET {path} had unexpected payload structure")
+                logger.debug(f"Full response: {raw}")
+            else:
+                logger.debug(f"Successfully got data from Supervisor {path}")
             return result
     except (URLError, HTTPError, TimeoutError, ValueError) as e:
-        logger.debug(f"Supervisor GET {path} failed: {e}")
+        logger.warning(f"Supervisor GET {path} failed: {type(e).__name__}: {e}")
         return None
 
 
@@ -164,22 +177,33 @@ def get_addon_ip() -> str:
     """
     Robust IPv4 for LAN clients (bulbs). Prefers Supervisor's view of the host.
     """
-    # 1) Preferred
+    logger.debug("=== Starting IP detection process ===")
+    
+    # 1) Preferred: default interface
+    logger.debug("Step 1: Trying Supervisor default interface...")
     ip = _get_ipv4_from_default_interface()
     if ip:
+        logger.info(f"✓ Using Supervisor default interface IP: {ip}")
         return ip
+    logger.debug("Step 1 failed: No IP from default interface")
 
     # 2) Fallback via /network/info
+    logger.debug("Step 2: Trying Supervisor network info scan...")
     ip = _get_ipv4_from_network_info()
     if ip:
+        logger.info(f"✓ Using Supervisor network scan IP: {ip}")
         return ip
+    logger.debug("Step 2 failed: No IP from network info")
 
     # 3) Last-resort: container heuristics
+    logger.debug("Step 3: Falling back to container heuristics...")
     ip = _container_guess_ipv4()
     if ip:
+        logger.info(f"✓ Using container-detected IP: {ip}")
         return ip
+    logger.debug("Step 3 failed: Container heuristics failed")
 
-    logger.error("No IPv4 address could be determined; returning 0.0.0.0")
+    logger.error("❌ All IP detection methods failed; returning 0.0.0.0")
     return "0.0.0.0"
 
 

@@ -1,6 +1,6 @@
 name: "Sengled Local Server"
 description: "Keep your Sengled bulbs local with HTTP + MQTT proxy server"
-version: "1.0.0"
+version: "1.0.1"
 slug: "sengled_local"
 init: false
 arch:

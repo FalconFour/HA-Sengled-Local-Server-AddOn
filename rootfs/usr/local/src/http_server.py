@@ -4,6 +4,7 @@ FastAPI HTTP server for Sengled bulb provisioning endpoints
 Serves the two critical endpoints bulbs need during setup
 """
 import json
+import os
 import time
 import logging
 from datetime import datetime
@@ -15,9 +16,14 @@ import aiofiles
 
 from network_utils import get_addon_ip, get_network_info
 
-# Configure logging
+# Configure logging with environment variable support
+def get_log_level():
+    """Get log level from environment or default to INFO"""
+    level_name = os.environ.get('LOG_LEVEL', 'info').upper()
+    return getattr(logging, level_name, logging.INFO)
+
 logging.basicConfig(
-    level=logging.INFO,
+    level=get_log_level(),
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)

@@ -5,14 +5,19 @@ All notable changes to the Sengled Local Server add-on will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2025-08-31
+
+### Fixes
+- **Actually Intelligent IP Detection** - Ask HA Supervisor for the IP address
+
 ## [1.0.0] - 2025-08-30
 
 ### Added
 - 🚀 **Initial release** of Sengled Local Server Home Assistant add-on
 - **HTTP Provisioning Server** on port 54448 ("light") serving critical Sengled endpoints
   - `/bimqtt` - Returns MQTT broker connection details for bulbs
-  - `/accessCloud.json` - Returns cloud access success status
-- **MQTT Broker with SSL** on port 28527 ("bulbs") for secure bulb connections
+  - `/accessCloud.json` - Static page so the bulb connects successfully
+- **MQTT Broker with SSL** on port 28527 ("bulbs") so stock firmware can connect openly
 - **Native MQTT Bridge** - Automatically forwards `wifielement/*` topics to Home Assistant MQTT broker
 - **Automatic SSL Certificate Generation** - Creates CA and server certificates on first run
 - **Intelligent IP Detection** - Multi-method IP discovery for containerized environments
@@ -22,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Certificate information display
   - Network diagnostics
   - Configuration overview
-- **Comprehensive Health Monitoring**
+- **Health Monitoring**
   - Docker health checks
   - HTTP endpoint validation
   - MQTT broker connectivity tests
@@ -33,12 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Certificate common name customization
   - Adjustable logging levels
 - **Multi-architecture Support** - ARM64, ARM7, AMD64, i386
-- **Security Features**
-  - Non-standard ports for security through obscurity
-  - SSL/TLS encryption for MQTT communication
-  - Access control lists for topic security
-  - Certificate-based authentication
-
+  
 ### Technical Details
 - **FastAPI** HTTP server with automatic OpenAPI documentation
 - **Mosquitto** MQTT broker with dynamic configuration generation
@@ -70,25 +70,18 @@ Both port numbers chosen for:
 ## Future Releases
 
 ### Planned for v1.1.0
-- [ ] Enhanced bulb discovery and auto-configuration
-- [ ] Integration with Home Assistant energy dashboard
-- [ ] Additional manufacturer support (research needed)
 - [ ] Mobile-responsive dashboard improvements
 - [ ] MQTT message filtering and transformation options
 
 ### Planned for v1.2.0
-- [ ] Multi-language support for web dashboard
 - [ ] Advanced monitoring and alerting capabilities
 - [ ] Backup and restore functionality for configuration
 - [ ] Performance optimizations for high bulb counts
-- [ ] Integration with Home Assistant device registry
 
 ### Community Requests
-- [ ] Support for custom certificate upload
-- [ ] WebSocket support for real-time dashboard updates
-- [ ] MQTT topic transformation rules
-- [ ] Integration with external certificate authorities
-- [ ] Advanced logging and audit trails
+- [ ] Docker and HA Add-On experience for optimization
+- [ ] Additional manufacturer support (research needed)
+- [ ] Multi-language support for web dashboard
 
 ---
 

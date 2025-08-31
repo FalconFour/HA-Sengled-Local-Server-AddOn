@@ -49,7 +49,7 @@ MOSQUITTO_PID=$!
 # Start HTTP server
 bashio::log.info "Starting HTTP server on port 54448..."
 cd /usr/local/src
-python3 -m uvicorn http_server:app \
+LOG_LEVEL="${LOG_LEVEL}" python3 -m uvicorn http_server:app \
     --host 0.0.0.0 \
     --port 54448 \
     --log-level "${LOG_LEVEL,,}" \

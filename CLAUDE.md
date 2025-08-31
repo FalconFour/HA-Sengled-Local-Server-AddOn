@@ -15,12 +15,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Web Dashboard** - Real-time monitoring interface
 
 ### Key Components
-- `src/http_server.py` - FastAPI endpoints with dynamic IP detection
-- `src/cert_manager.py` - SSL certificate generation and management  
-- `src/config_manager.py` - Dynamic Mosquitto configuration from Jinja2 templates
-- `src/network_utils.py` - Intelligent IP detection for containerized environments
-- `mosquitto/mosquitto.conf.j2` - Mosquitto configuration template with bridge support
-- `web/` - Modern responsive dashboard with real-time updates
+- `rootfs/usr/local/src/http_server.py` - FastAPI endpoints with dynamic IP detection
+- `rootfs/usr/local/src/cert_manager.py` - SSL certificate generation and management  
+- `rootfs/usr/local/src/config_manager.py` - Dynamic Mosquitto configuration from Jinja2 templates
+- `rootfs/usr/local/src/network_utils.py` - Intelligent IP detection for containerized environments
+- `rootfs/usr/local/mosquitto/mosquitto.conf.j2` - Mosquitto configuration template with bridge support
+- `rootfs/usr/local/web/` - Modern responsive dashboard with real-time updates
+- `rootfs/etc/services.d/sengled/run` - s6-overlay service manager (replaces custom run.sh)
+- `rootfs/usr/src/app/translations/` - Home Assistant UI translations
 
 ## Development Commands
 
@@ -147,3 +149,76 @@ Creative port numbering provides:
 ```
 
 This is a production-ready Home Assistant add-on with enterprise-grade features, comprehensive monitoring, and security best practices.
+
+## 🏆 Docker Hell Survival Guide - Lessons Learned
+
+### Critical HA Add-on Architecture Requirements
+
+**MUST follow the official HA add-on template structure:**
+- Use `rootfs/` directory for ALL application files
+- Use `build.yaml` for multi-architecture base images  
+- Use s6-overlay services in `rootfs/etc/services.d/`
+- Use official HA base images (e.g., `ghcr.io/home-assistant/amd64-base:3.15`)
+
+**GitHub Actions Builder Requirements:**
+```yaml
+- name: Build add-on
+  uses: home-assistant/builder@2025.03.0  # Use specific version, not @master
+  with:
+    args: |
+      --${{ matrix.arch }} \
+      --target /data \
+      --image "sengled-local-server-{arch}" \
+      --docker-hub "ghcr.io/${{ github.repository_owner }}" \
+      --addon
+```
+
+### Python pip "externally-managed-environment" Solutions
+
+**Problem:** Modern Alpine/Debian systems prevent system pip installs
+**Solution:** Use virtual environments in containers:
+```dockerfile
+RUN python3 -m venv /opt/venv \
+    && . /opt/venv/bin/activate \
+    && pip3 install --no-cache-dir -r /tmp/requirements.txt
+```
+Then in service scripts: `export PATH="/opt/venv/bin:$PATH"`
+
+### GitHub Container Registry (GHCR) Permissions
+
+**Problem:** "Upload failed" errors despite successful builds
+**Solution:** Enable GitHub Actions permissions:
+1. Repo Settings → Actions → General
+2. Workflow permissions → "Read and write permissions"  
+3. Check "Allow GitHub Actions to create and approve pull requests"
+
+### Architecture Support Strategy
+
+**Modern approach (2025):**
+- ✅ `amd64` - Intel/AMD 64-bit (majority of installs)
+- ✅ `aarch64` - ARM 64-bit (Raspberry Pi 4+, modern ARM)
+- ❌ `armv7`, `armhf`, `i386` - Deprecated (<1.5% usage, build issues)
+
+### Common Pitfalls Avoided
+
+1. **Never use `--break-system-packages`** - Use virtual environments instead
+2. **Don't skip the builder parameters** - Need `--image`, `--docker-hub`, `--target`
+3. **Always use specific builder versions** - `@master` can break unexpectedly
+4. **Copy everything to `rootfs/`** - Don't leave files in project root
+5. **Test GitHub Actions permissions early** - Most "mysterious" failures are auth issues
+
+### File Structure Template
+```
+├── config.yaml          # HA add-on metadata
+├── build.yaml           # Multi-arch base images  
+├── Dockerfile           # Simple: install deps + copy rootfs
+├── requirements.txt     # Python dependencies
+├── .github/workflows/   # HA builder workflow
+└── rootfs/             # Everything the container needs
+    ├── etc/services.d/  # s6-overlay services
+    ├── usr/local/src/   # Application code
+    ├── usr/local/web/   # Web dashboard
+    └── usr/src/app/translations/  # HA translations
+```
+
+This guide represents 10+ iterations of trial-and-error to get from "Docker Hell" to successful multi-architecture builds. Follow this template and you'll avoid the pain! 🎯

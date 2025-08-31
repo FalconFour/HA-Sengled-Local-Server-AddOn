@@ -133,12 +133,16 @@ async def get_bimqtt(request: Request):
          summary="Access Cloud Status", 
          description="Returns cloud access status for Sengled bulbs",
          response_model=Dict[str, Any])
+@app.post("/accessCloud.json",
+          summary="Access Cloud Status (POST)", 
+          description="Returns cloud access status for Sengled bulbs via POST",
+          response_model=Dict[str, Any])
 async def get_access_cloud(request: Request):
     """
     Critical endpoint: Returns cloud access status for Sengled bulbs
     
-    This was originally used for cloud association but now just returns
-    success to allow the bulb to complete its setup process.
+    Handles both GET and POST requests. POST data from bulbs is ignored.
+    Always returns success to allow the bulb to complete its setup process.
     """
     stats['access_cloud_requests'] += 1
     

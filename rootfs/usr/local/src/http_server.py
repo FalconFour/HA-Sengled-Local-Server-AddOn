@@ -85,6 +85,8 @@ async def request_middleware(request: Request, call_next):
     if client_ip:
         stats['client_ips'].add(client_ip)
         logger.info(f"Request from {client_ip}: {request.method} {request.url.path}")
+        logger.debug(f"Full request URL: {request.url}")
+        logger.debug(f"Raw path info: {request.scope.get('path', 'N/A')}")
     
     # Process request
     response = await call_next(request)
@@ -306,6 +308,19 @@ async def dashboard():
 
 # === Workarounds for Sengled firmware URL parsing bugs ===
 
+# Handle double-slash paths specifically first
+@app.get("//{path:path}",
+         summary="Double-slash URL fix",
+         description="Handles URLs with double slashes from broken HTTP clients")
+@app.post("//{path:path}",
+          summary="Double-slash URL fix (POST)",
+          description="Handles POST URLs with double slashes from broken HTTP clients")
+async def handle_double_slash_urls(path: str, request: Request):
+    """Handle URLs that start with double slashes like //10.0.1.31:54448/bimqtt"""
+    logger.warning(f"🔧 DOUBLE-SLASH HANDLER: path='{path}'")
+    return await handle_mangled_urls(path, request)
+
+# General catch-all for other mangled patterns
 @app.get("/{mangled_path:path}",
          summary="Catch-all for mangled bulb URLs",
          description="Handles malformed URLs from Sengled bulbs with broken HTTP clients")
@@ -319,7 +334,7 @@ async def handle_mangled_urls(mangled_path: str, request: Request):
     Bulbs send requests like: GET //10.0.1.31:54448/bimqtt or GET http://10.0.1.31:54448/bimqtt
     This catches those and redirects to the correct endpoint.
     """
-    logger.debug(f"Caught mangled path: {mangled_path}")
+    logger.warning(f"🎯 CATCH-ALL TRIGGERED: mangled_path='{mangled_path}'")
     
     # Handle mangled bimqtt requests
     if "bimqtt" in mangled_path.lower():

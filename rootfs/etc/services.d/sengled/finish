@@ -1,0 +1,9 @@
+#!/usr/bin/with-contenv bashio
+
+# Optional cleanup on service stop
+bashio::log.info "🛑 Sengled Local Server shutting down..."
+
+# The s6-overlay will handle killing child processes automatically
+# This is just for logging/cleanup if needed
+
+exit 0

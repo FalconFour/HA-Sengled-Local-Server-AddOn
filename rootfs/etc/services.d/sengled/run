@@ -1,0 +1,62 @@
+#!/usr/bin/with-contenv bashio
+set -e
+
+# ==============================================================================
+# Sengled Local Server - Main Service
+# ==============================================================================
+
+# Configuration paths
+CONFIG_PATH=/data/options.json
+MOSQUITTO_CONFIG_DIR=/data/mosquitto
+CERTS_DIR=/data/certs
+LOG_LEVEL=$(bashio::config 'log_level')
+
+# Set logging level
+bashio::log.level "${LOG_LEVEL}"
+
+# Setup directories
+bashio::log.info "Setting up directory structure..."
+mkdir -p "${MOSQUITTO_CONFIG_DIR}" "${CERTS_DIR}" /data/config
+chown -R mosquitto:mosquitto "${MOSQUITTO_CONFIG_DIR}"
+
+# Generate certificates if needed
+if [[ $(bashio::config 'auto_generate_certs') == true ]]; then
+    if [[ ! -f "${CERTS_DIR}/ca.crt" ]] || [[ ! -f "${CERTS_DIR}/server.crt" ]]; then
+        bashio::log.info "Generating SSL certificates..."
+        python3 /usr/local/src/cert_manager.py --generate --output-dir "${CERTS_DIR}" \
+            --common-name "$(bashio::config 'cert_common_name')"
+    else
+        bashio::log.info "SSL certificates already exist, skipping generation"
+    fi
+fi
+
+# Configure mosquitto
+bashio::log.info "Configuring Mosquitto MQTT broker..."
+python3 /usr/local/src/config_manager.py \
+    --template /usr/local/mosquitto/mosquitto.conf.j2 \
+    --output "${MOSQUITTO_CONFIG_DIR}/mosquitto.conf" \
+    --config "${CONFIG_PATH}" \
+    --certs-dir "${CERTS_DIR}"
+
+# Start Mosquitto
+bashio::log.info "Starting Mosquitto MQTT broker on port 28527..."
+mosquitto -c "${MOSQUITTO_CONFIG_DIR}/mosquitto.conf" &
+MOSQUITTO_PID=$!
+
+# Start HTTP server
+bashio::log.info "Starting HTTP server on port 54448..."
+cd /usr/local/src
+python3 -m uvicorn http_server:app \
+    --host 0.0.0.0 \
+    --port 54448 \
+    --log-level "${LOG_LEVEL,,}" \
+    --access-log &
+HTTP_PID=$!
+
+bashio::log.info "🚀 All services started successfully!"
+bashio::log.info "📡 HTTP endpoints available at port 54448"
+bashio::log.info "🔌 MQTT broker listening on port 28527"
+bashio::log.info "🔦 Sengled Local Server ready! Light up your local network! 💡"
+
+# Wait for services
+wait

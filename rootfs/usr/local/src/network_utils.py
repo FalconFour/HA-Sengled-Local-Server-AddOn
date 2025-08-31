@@ -92,7 +92,7 @@ def _get_ipv4_from_default_interface() -> Optional[str]:
         logger.debug("Supervisor default interface reports connected=false.")
         return None
 
-    ipv4 = (data.get("ipv4") or {}).get("addresses") or []
+    ipv4 = (data.get("ipv4") or {}).get("address") or []
     picked = _pick_ipv4(ipv4)
     if picked:
         logger.info(f"Supervisor default interface provided IPv4 {picked}")
@@ -111,7 +111,7 @@ def _get_ipv4_from_network_info() -> Optional[str]:
     # First pass: primary+connected
     for iface in data.get("interfaces", []):
         if iface.get("primary") and iface.get("connected"):
-            ipv4 = (iface.get("ipv4") or {}).get("addresses") or []
+            ipv4 = (iface.get("ipv4") or {}).get("address") or []
             picked = _pick_ipv4(ipv4)
             if picked:
                 logger.info(f"Supervisor network info picked primary iface {iface.get('interface')} IPv4 {picked}")
@@ -120,7 +120,7 @@ def _get_ipv4_from_network_info() -> Optional[str]:
     # Second pass: any connected with IPv4
     for iface in data.get("interfaces", []):
         if iface.get("connected"):
-            ipv4 = (iface.get("ipv4") or {}).get("addresses") or []
+            ipv4 = (iface.get("ipv4") or {}).get("address") or []
             picked = _pick_ipv4(ipv4)
             if picked:
                 logger.info(f"Supervisor network info picked connected iface {iface.get('interface')} IPv4 {picked}")

@@ -5,11 +5,12 @@ All notable changes to the Sengled Local Server add-on will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.3] - 2025-08-31
+## [1.0.4] - 2025-08-31
 
 ### Fixes
 - **Actually Intelligent IP Detection** - Ask HA Supervisor for the IP address
 - **Fix POST to accessCloud.json** - It's POSTed, not GETten
+- **Handle Mangled URLs** - Sengled firmware (maybe only some) mangles HTTP requests
 
 ## [1.0.0] - 2025-08-30
 
@@ -76,8 +77,8 @@ Both port numbers chosen for:
 
 ### Planned for v1.2.0
 - [ ] Advanced monitoring and alerting capabilities
-- [ ] Backup and restore functionality for configuration
 - [ ] Performance optimizations for high bulb counts
+- [ ] External "app" for bulb WiFi setup via phone browser
 
 ### Community Requests
 - [ ] Docker and HA Add-On experience for optimization

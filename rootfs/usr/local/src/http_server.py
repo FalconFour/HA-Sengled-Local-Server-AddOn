@@ -304,6 +304,38 @@ async def dashboard():
     return HTMLResponse(content=html_content)
 
 
+# === Workarounds for Sengled firmware URL parsing bugs ===
+
+@app.get("/{mangled_path:path}",
+         summary="Catch-all for mangled bulb URLs",
+         description="Handles malformed URLs from Sengled bulbs with broken HTTP clients")
+@app.post("/{mangled_path:path}",
+          summary="Catch-all for mangled bulb URLs (POST)",
+          description="Handles malformed POST URLs from Sengled bulbs with broken HTTP clients")
+async def handle_mangled_urls(mangled_path: str, request: Request):
+    """
+    Workaround for Sengled bulb firmware that incorrectly uses full URLs as paths
+    
+    Bulbs send requests like: GET //10.0.1.31:54448/bimqtt or GET http://10.0.1.31:54448/bimqtt
+    This catches those and redirects to the correct endpoint.
+    """
+    logger.debug(f"Caught mangled path: {mangled_path}")
+    
+    # Handle mangled bimqtt requests
+    if "bimqtt" in mangled_path.lower():
+        logger.info(f"Redirecting mangled bimqtt request from {request.client.host}: {mangled_path}")
+        return await get_bimqtt(request)
+    
+    # Handle mangled accessCloud requests  
+    if "accesscloud" in mangled_path.lower():
+        logger.info(f"Redirecting mangled accessCloud request from {request.client.host}: {mangled_path}")
+        return await get_access_cloud(request)
+    
+    # Log unrecognized patterns for debugging
+    logger.warning(f"Unrecognized mangled path from {request.client.host}: {mangled_path}")
+    raise HTTPException(status_code=404, detail="Not Found")
+
+
 @app.on_event("startup")
 async def startup_event():
     """Initialize service on startup"""

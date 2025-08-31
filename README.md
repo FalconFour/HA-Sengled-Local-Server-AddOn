@@ -16,7 +16,9 @@
 
 ### 1. Install the Add-on
 
-1. Add this repository to your Home Assistant add-on store
+[![Open your Home Assistant instance and show the add add-on repository dialog with a specific repository URL pre-filled.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FFalconFour%2FHA-Sengled-Local-Server-AddOn)
+
+1. Add this repository to your Home Assistant add-on store (link above)
 2. Install the "Sengled Local Server" add-on
 3. Configure your MQTT broker settings (see [Configuration](#configuration))
 4. Start the add-on

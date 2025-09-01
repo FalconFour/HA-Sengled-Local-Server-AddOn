@@ -488,9 +488,9 @@ def run_server():
     current_ip = get_current_ip()
     logger.info(f"🌐 Detected IP address: {current_ip}")
     
-    # Initialize and start MQTT listener
+    # Initialize and start MQTT listener (connect to localhost broker)
     try:
-        mqtt_listener = SengledMQTTListener(broker_host=current_ip, broker_port=CONFIG['mqtt_port'])
+        mqtt_listener = SengledMQTTListener(broker_host="localhost", broker_port=CONFIG['mqtt_port'])
         mqtt_listener.start()
         logger.info("📡 MQTT listener started for device discovery")
     except Exception as e:

@@ -185,6 +185,9 @@ class SengledMQTTListener:
     
     def _run_listener(self):
         """Main listener loop (runs in separate thread)"""
+        retry_delay = 10  # Start with 10 second delay
+        max_retry_delay = 120  # Max 2 minutes between retries
+        
         while self.running:
             try:
                 if not self.connected:
@@ -195,9 +198,12 @@ class SengledMQTTListener:
                     if result == 0:
                         # Start the network loop
                         self.client.loop_start()
+                        retry_delay = 10  # Reset retry delay on successful connection
                     else:
                         logger.error(f"Failed to connect: {mqtt.error_string(result)}")
-                        time.sleep(10)  # Wait before retry
+                        logger.info(f"Retrying in {retry_delay} seconds...")
+                        time.sleep(retry_delay)
+                        retry_delay = min(retry_delay * 2, max_retry_delay)  # Exponential backoff
                         continue
                 
                 # Keep the thread alive while connected
@@ -210,7 +216,9 @@ class SengledMQTTListener:
                 
             except Exception as e:
                 logger.error(f"MQTT listener error: {e}")
-                time.sleep(10)  # Wait before retry
+                logger.info(f"Retrying in {retry_delay} seconds...")
+                time.sleep(retry_delay)
+                retry_delay = min(retry_delay * 2, max_retry_delay)
     
     def get_status(self) -> dict:
         """Get current status of the MQTT listener"""

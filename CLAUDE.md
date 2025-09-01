@@ -15,7 +15,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Web Dashboard** - Real-time monitoring interface
 
 ### Key Components
-- `rootfs/usr/local/src/simple_http_server.py` - Simple HTTP server with dynamic IP detection
+- `rootfs/usr/local/src/simple_http_server.py` - Simple HTTP server with integrated MQTT listener and device API
+- `rootfs/usr/local/src/device_storage.py` - JSON-based device storage with persistence and limits
+- `rootfs/usr/local/src/mqtt_listener.py` - MQTT listener for automatic device discovery
 - `rootfs/usr/local/src/cert_manager.py` - SSL certificate generation and management  
 - `rootfs/usr/local/src/config_manager.py` - Dynamic Mosquitto configuration from Jinja2 templates
 - `rootfs/usr/local/src/network_utils.py` - Intelligent IP detection for containerized environments
@@ -35,6 +37,8 @@ docker buildx build --platform linux/amd64,linux/arm64,linux/arm/v7 -t sengled-l
 curl http://localhost:54448/bimqtt
 curl http://localhost:54448/accessCloud.json
 curl http://localhost:54448/health
+curl http://localhost:54448/api/devices
+curl http://localhost:54448/api/mqtt/status
 
 # Test certificate generation
 python3 src/cert_manager.py --generate --output-dir ./test_certs
@@ -63,9 +67,17 @@ python3 src/config_manager.py --template mosquitto/mosquitto.conf.j2 \
 ## Code Architecture
 
 ### HTTP Server (Simple)  
-- **Endpoints**: `/bimqtt`, `/accessCloud.json`, `/health`, `/status`, `/network`
+- **Core Endpoints**: `/bimqtt`, `/accessCloud.json`, `/health`, `/status`, `/network`
+- **Device API**: `/api/devices`, `/api/device/{mac}`, `/api/mqtt/status`
 - **Features**: Dynamic IP detection, malformed URL handling, request tracking, CORS support
 - **Monitoring**: Built-in statistics and activity logging with clear debugging
+
+### Device Discovery System
+- **MQTT Listener**: Connects to local broker using SSL certificates
+- **Automatic Discovery**: Processes `wifielement/{mac}/status` messages from bulb power-up
+- **Smart Filtering**: Ignores short status messages, captures comprehensive device data
+- **JSON Persistence**: Stores devices in `/data/devices/devices.json` with atomic writes
+- **Storage Limits**: 200 devices max, 1MB per device, 10MB total to prevent unbounded growth
 
 ### MQTT Infrastructure
 - **Mosquitto Broker**: SSL-enabled on port 28527 with ACL security

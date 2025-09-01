@@ -16,8 +16,12 @@ bashio::log.level "${LOG_LEVEL}"
 
 # Setup directories
 bashio::log.info "Setting up directory structure..."
-mkdir -p "${MOSQUITTO_CONFIG_DIR}" "${CERTS_DIR}" /data/config
+mkdir -p "${MOSQUITTO_CONFIG_DIR}" "${CERTS_DIR}" /data/config /data/devices
 chown -R mosquitto:mosquitto "${MOSQUITTO_CONFIG_DIR}"
+
+# Setup device storage directory with proper permissions
+# HTTP server runs as root but needs write access for device storage
+chmod 755 /data/devices
 
 # Fix certificate permissions for mosquitto user
 if [[ -d "${CERTS_DIR}" ]]; then

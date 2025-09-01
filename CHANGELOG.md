@@ -5,6 +5,19 @@ All notable changes to the Sengled Local Server add-on will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.11] - 2025-09-01
+
+### Added
+- **Device Discovery API** - New endpoints to access discovered Sengled bulbs
+  - `GET /api/devices` - Returns all discovered devices with capabilities and status
+  - `GET /api/device/{mac}` - Returns individual device by MAC address
+  - `GET /api/mqtt/status` - MQTT listener connection status and statistics
+- **Automatic Device Storage** - Bulb information persisted to `/data/devices/` 
+- **Storage Limits** - Prevents unbounded growth (200 devices max, 1MB per device)
+
+### Changed
+- **Dashboard** - Now displays discovered device count and MQTT connection status
+
 ## [1.0.10] - 2025-09-01
 
 ### Changed

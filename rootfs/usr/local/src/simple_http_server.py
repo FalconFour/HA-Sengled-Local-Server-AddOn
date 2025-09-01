@@ -16,6 +16,7 @@ from urllib.parse import urlparse, parse_qs
 from collections import defaultdict
 
 from network_utils import get_addon_ip, get_network_info
+from mqtt_listener import SengledMQTTListener
 
 # Configure logging with environment variable support
 def get_log_level():
@@ -48,6 +49,9 @@ STATS = {
     'client_ips': set(),
     'client_request_counts': defaultdict(int)
 }
+
+# Global MQTT listener instance
+mqtt_listener = None
 
 def get_current_ip():
     """Get current IP with caching to avoid excessive lookups"""
@@ -150,7 +154,7 @@ class SengledHandler(BaseHTTPRequestHandler):
         response_data = {
             "status": "healthy",
             "uptime_seconds": round(uptime, 2),
-            "version": "1.0.0",
+            "version": "1.0.11",
             "service": "sengled-local-server"
         }
         
@@ -163,7 +167,7 @@ class SengledHandler(BaseHTTPRequestHandler):
         
         response_data = {
             "service": "Sengled Local Server",
-            "version": "1.0.0",
+            "version": "1.0.11",
             "status": "running",
             "uptime_seconds": round(uptime, 2),
             "uptime_human": f"{int(uptime // 3600)}h {int((uptime % 3600) // 60)}m {int(uptime % 60)}s",
@@ -205,10 +209,117 @@ class SengledHandler(BaseHTTPRequestHandler):
             logger.error(f"Failed to get network info: {e}")
             self.send_json_response({"success": False, "error": str(e)}, status=500)
     
+    def handle_api_devices(self):
+        """API endpoint for device discovery - returns all discovered devices"""
+        global mqtt_listener
+        
+        try:
+            if mqtt_listener is None:
+                self.send_json_response({
+                    "success": False, 
+                    "error": "MQTT listener not initialized"
+                }, status=503)
+                return
+            
+            devices = mqtt_listener.get_devices()
+            
+            response_data = {
+                "success": True,
+                "device_count": len(devices),
+                "devices": devices
+            }
+            
+            logger.info(f"📱 API: Served {len(devices)} devices to {self.client_address[0]}")
+            self.send_json_response(response_data)
+            
+        except Exception as e:
+            logger.error(f"Failed to get devices: {e}")
+            self.send_json_response({
+                "success": False, 
+                "error": str(e)
+            }, status=500)
+    
+    def handle_api_device(self, mac: str):
+        """API endpoint for single device by MAC address"""
+        global mqtt_listener
+        
+        try:
+            if mqtt_listener is None:
+                self.send_json_response({
+                    "success": False,
+                    "error": "MQTT listener not initialized" 
+                }, status=503)
+                return
+            
+            device = mqtt_listener.get_device(mac)
+            
+            if device is None:
+                self.send_json_response({
+                    "success": False,
+                    "error": f"Device {mac} not found"
+                }, status=404)
+                return
+            
+            response_data = {
+                "success": True,
+                "device": device
+            }
+            
+            logger.info(f"📱 API: Served device {mac} to {self.client_address[0]}")
+            self.send_json_response(response_data)
+            
+        except Exception as e:
+            logger.error(f"Failed to get device {mac}: {e}")
+            self.send_json_response({
+                "success": False,
+                "error": str(e)
+            }, status=500)
+    
+    def handle_api_mqtt_status(self):
+        """API endpoint for MQTT listener status"""
+        global mqtt_listener
+        
+        try:
+            if mqtt_listener is None:
+                self.send_json_response({
+                    "success": False,
+                    "error": "MQTT listener not initialized"
+                }, status=503)
+                return
+            
+            status = mqtt_listener.get_status()
+            
+            response_data = {
+                "success": True,
+                "mqtt_status": status
+            }
+            
+            self.send_json_response(response_data)
+            
+        except Exception as e:
+            logger.error(f"Failed to get MQTT status: {e}")
+            self.send_json_response({
+                "success": False,
+                "error": str(e)
+            }, status=500)
+    
     def handle_dashboard(self):
         """Simple HTML dashboard"""
+        global mqtt_listener
+        
         uptime = time.time() - STATS['start_time']
         current_ip = get_current_ip()
+        
+        # Get MQTT and device info
+        mqtt_status = "Disconnected"
+        device_count = 0
+        mqtt_uptime = "N/A"
+        
+        if mqtt_listener:
+            status = mqtt_listener.get_status()
+            mqtt_status = "Connected" if status['connected'] else "Disconnected"
+            device_count = status['storage']['total_devices']
+            mqtt_uptime = f"{int(status['uptime_seconds'] // 3600)}h {int((status['uptime_seconds'] % 3600) // 60)}m {int(status['uptime_seconds'] % 60)}s"
         
         html_content = f"""
 <!DOCTYPE html>
@@ -226,6 +337,7 @@ class SengledHandler(BaseHTTPRequestHandler):
         .endpoints {{ background: #f0f9ff; padding: 15px; border-radius: 5px; margin: 20px 0; }}
         .endpoint {{ margin: 10px 0; font-family: monospace; }}
         .green {{ color: #28a745; }}
+        .red {{ color: #dc3545; }}
         .blue {{ color: #007bff; }}
         .footer {{ text-align: center; margin-top: 30px; color: #666; font-size: 14px; }}
     </style>
@@ -239,7 +351,7 @@ class SengledHandler(BaseHTTPRequestHandler):
         
         <div class="status">
             <div class="stat-box">
-                <h3>Uptime</h3>
+                <h3>HTTP Uptime</h3>
                 <p>{int(uptime // 3600)}h {int((uptime % 3600) // 60)}m {int(uptime % 60)}s</p>
             </div>
             <div class="stat-box">
@@ -247,8 +359,12 @@ class SengledHandler(BaseHTTPRequestHandler):
                 <p>{STATS['total_requests']}</p>
             </div>
             <div class="stat-box">
-                <h3>Unique Clients</h3>
-                <p>{len(STATS['client_ips'])}</p>
+                <h3>Discovered Devices</h3>
+                <p>{device_count}</p>
+            </div>
+            <div class="stat-box">
+                <h3>MQTT Status</h3>
+                <p class="{'green' if mqtt_status == 'Connected' else 'red'}">{mqtt_status}</p>
             </div>
         </div>
         
@@ -260,14 +376,16 @@ class SengledHandler(BaseHTTPRequestHandler):
         </div>
         
         <div class="endpoints">
-            <h3>🔧 Management</h3>
+            <h3>🔧 Management & API</h3>
             <div class="endpoint"><a href="/status">📊 Detailed Status</a></div>
             <div class="endpoint"><a href="/network">🌐 Network Info</a></div>
             <div class="endpoint"><a href="/health">❤️ Health Check</a></div>
+            <div class="endpoint"><a href="/api/devices">📱 Device API</a></div>
+            <div class="endpoint"><a href="/api/mqtt/status">📡 MQTT Status</a></div>
         </div>
         
         <div class="footer">
-            <p>Sengled Local Server v1.0.0 - Simple HTTP | Keeping your bulbs local! 🏠</p>
+            <p>Sengled Local Server v1.0.11 - Simple HTTP | Keeping your bulbs local! 🏠</p>
         </div>
     </div>
 </body>
@@ -294,6 +412,16 @@ class SengledHandler(BaseHTTPRequestHandler):
         # Check for accessCloud in any form  
         elif any(pattern in raw_path for pattern in ['/accessCloud.json', 'accessCloud.json', 'accessCloud']):
             self.handle_access_cloud()
+        
+        # API endpoints for device management
+        elif raw_path == '/api/devices':
+            self.handle_api_devices()
+        elif raw_path.startswith('/api/device/'):
+            # Extract MAC from path like /api/device/B0:CE:18:C3:3A:A2
+            mac = raw_path.split('/')[-1]
+            self.handle_api_device(mac)
+        elif raw_path == '/api/mqtt/status':
+            self.handle_api_mqtt_status()
         
         # Management endpoints
         elif raw_path == '/health':
@@ -347,7 +475,9 @@ class SengledHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
 def run_server():
-    """Start the HTTP server"""
+    """Start the HTTP server and MQTT listener"""
+    global mqtt_listener
+    
     server_address = ('0.0.0.0', CONFIG['http_port'])
     
     logger.info("🚀 Sengled Local Server starting up...")
@@ -357,9 +487,19 @@ def run_server():
     # Initial IP detection
     current_ip = get_current_ip()
     logger.info(f"🌐 Detected IP address: {current_ip}")
-    logger.info("✅ Simple HTTP server ready for bulb provisioning!")
     
-    # Create and start server
+    # Initialize and start MQTT listener
+    try:
+        mqtt_listener = SengledMQTTListener(broker_host=current_ip, broker_port=CONFIG['mqtt_port'])
+        mqtt_listener.start()
+        logger.info("📡 MQTT listener started for device discovery")
+    except Exception as e:
+        logger.error(f"Failed to start MQTT listener: {e}")
+        logger.warning("Device discovery will not be available")
+    
+    logger.info("✅ Sengled Local Server ready!")
+    
+    # Create and start HTTP server
     httpd = HTTPServer(server_address, SengledHandler)
     
     try:
@@ -369,6 +509,9 @@ def run_server():
         uptime = time.time() - STATS['start_time']
         logger.info(f"📊 Final stats - Uptime: {int(uptime)}s, Total requests: {STATS['total_requests']}")
     finally:
+        # Clean shutdown
+        if mqtt_listener:
+            mqtt_listener.stop()
         httpd.server_close()
 
 if __name__ == "__main__":

@@ -22,10 +22,26 @@ log_type error
 log_type warning
 log_type notice
 log_type information
+{% if log_level == 'DEBUG' %}
+log_type debug
+log_type subscribe
+log_type unsubscribe
+log_type websockets
+log_type all
+{% endif %}
 log_timestamp true
 
 # Connection messages
 connection_messages true
+
+{% if log_level == 'DEBUG' %}
+# Debug: Log all client connections and disconnections
+log_type debug
+
+# Debug: Show all subscription and message activity
+# This will help us see if bulbs are actually connecting and what they're sending
+verbose true
+{% endif %}
 
 # ==============================================================================
 # Network Configuration

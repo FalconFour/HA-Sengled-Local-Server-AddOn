@@ -489,13 +489,16 @@ def run_server():
     logger.info(f"🌐 Detected IP address: {current_ip}")
     
     # Initialize and start MQTT listener (connect to localhost broker)
-    try:
-        mqtt_listener = SengledMQTTListener(broker_host="localhost", broker_port=CONFIG['mqtt_port'])
-        mqtt_listener.start()
-        logger.info("📡 MQTT listener started for device discovery")
-    except Exception as e:
-        logger.error(f"Failed to start MQTT listener: {e}")
-        logger.warning("Device discovery will not be available")
+    # TEMPORARILY DISABLED - debugging connection loop
+    # try:
+    #     mqtt_listener = SengledMQTTListener(broker_host="localhost", broker_port=CONFIG['mqtt_port'])
+    #     mqtt_listener.start()
+    #     logger.info("📡 MQTT listener started for device discovery")
+    # except Exception as e:
+    #     logger.error(f"Failed to start MQTT listener: {e}")
+    #     logger.warning("Device discovery will not be available")
+    
+    logger.info("🔧 MQTT listener temporarily disabled for debugging")
     
     logger.info("✅ Sengled Local Server ready!")
     

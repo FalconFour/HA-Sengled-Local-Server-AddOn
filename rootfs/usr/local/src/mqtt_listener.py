@@ -194,31 +194,39 @@ class SengledMQTTListener:
                     logger.info(f"Attempting to connect to MQTT broker at {self.broker_host}:{self.broker_port}")
                     self.stats['connection_attempts'] += 1
                     
-                    result = self.client.connect(self.broker_host, self.broker_port, 60)
-                    if result == 0:
-                        # Start the network loop
-                        self.client.loop_start()
-                        retry_delay = 10  # Reset retry delay on successful connection
-                    else:
-                        logger.error(f"Failed to connect: {mqtt.error_string(result)}")
-                        logger.info(f"Retrying in {retry_delay} seconds...")
-                        time.sleep(retry_delay)
-                        retry_delay = min(retry_delay * 2, max_retry_delay)  # Exponential backoff
+                    # Use loop_forever with retry_first_connection=False to prevent automatic retries
+                    # We want to control the retry logic ourselves
+                    try:
+                        result = self.client.connect(self.broker_host, self.broker_port, 60)
+                        if result == 0:
+                            logger.debug("Connection initiated, starting network loop...")
+                            # Use blocking loop_forever but with our own retry control
+                            self.client.loop_forever(retry_first_connection=False)
+                            # If we get here, connection was lost
+                            self.connected = False
+                            logger.warning("MQTT connection lost")
+                        else:
+                            logger.error(f"Failed to connect: {mqtt.error_string(result)}")
+                            raise ConnectionError(f"MQTT connect failed: {result}")
+                            
+                    except Exception as conn_error:
+                        logger.error(f"Connection error: {conn_error}")
+                        if self.connected:
+                            self.client.disconnect()
+                            self.connected = False
+                        
+                        if self.running:  # Only retry if we're still supposed to be running
+                            logger.info(f"Retrying in {retry_delay} seconds...")
+                            time.sleep(retry_delay)
+                            retry_delay = min(retry_delay * 2, max_retry_delay)
                         continue
-                
-                # Keep the thread alive while connected
-                while self.running and self.connected:
-                    time.sleep(1)
-                
-                # Clean shutdown
-                if self.connected:
-                    self.client.loop_stop()
                 
             except Exception as e:
                 logger.error(f"MQTT listener error: {e}")
-                logger.info(f"Retrying in {retry_delay} seconds...")
-                time.sleep(retry_delay)
-                retry_delay = min(retry_delay * 2, max_retry_delay)
+                if self.running:
+                    logger.info(f"Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                    retry_delay = min(retry_delay * 2, max_retry_delay)
     
     def get_status(self) -> dict:
         """Get current status of the MQTT listener"""

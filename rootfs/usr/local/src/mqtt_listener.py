@@ -67,23 +67,19 @@ class SengledMQTTListener:
         
     def _setup_mqtt_client(self):
         """Configure MQTT client with SSL and callbacks"""
-        # Set up SSL/TLS
+        # Set up SSL/TLS with relaxed validation (like bulbs do)
         try:
-            ca_cert = self.certs_dir / "ca.crt"
-            client_cert = self.certs_dir / "server.crt"
-            client_key = self.certs_dir / "server.key"
-            
-            if all(cert.exists() for cert in [ca_cert, client_cert, client_key]):
-                context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
-                context.check_hostname = False  # Allow self-signed certificates
-                context.verify_mode = ssl.CERT_REQUIRED
-                context.load_verify_locations(str(ca_cert))
-                context.load_cert_chain(str(client_cert), str(client_key))
+            if self.broker_port == 28527:
+                # Use relaxed SSL validation for internal broker with self-signed certs
+                # This matches how Sengled bulbs connect - they accept any SSL certificate
+                context = ssl.create_default_context()
+                context.check_hostname = False
+                context.verify_mode = ssl.CERT_NONE  # Accept any certificate (like bulbs)
                 
                 self.client.tls_set_context(context)
-                logger.info("SSL/TLS configured with generated certificates")
+                logger.info("SSL/TLS configured with relaxed validation (bulb-compatible)")
             else:
-                logger.warning("SSL certificates not found, attempting insecure connection")
+                logger.info(f"Connecting to external broker {self.broker_host}:{self.broker_port} without SSL")
                 
         except Exception as e:
             logger.error(f"Failed to setup SSL: {e}")

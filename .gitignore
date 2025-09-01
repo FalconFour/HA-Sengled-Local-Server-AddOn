@@ -1,1 +1,5 @@
 /rootfs/usr/local/src/__pycache__
+
+# Testing and diagnostics
+test_diagnostics/
+*.tmp

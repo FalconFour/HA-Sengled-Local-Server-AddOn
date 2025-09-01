@@ -149,10 +149,42 @@ class DeviceStorage:
             
             device['attributes'] = updated_attributes
         
-        # Extract capabilities from supportAttributes if present
+        # Extract capabilities from supportAttributes if present (expand only, never shrink)
         if 'supportAttributes' in device['attributes']:
             caps_str = device['attributes']['supportAttributes']
-            device['capabilities'] = [cap.strip() for cap in caps_str.split(',')]
+            new_caps = [cap.strip() for cap in caps_str.split(',') if cap.strip()]
+            
+            # Merge new capabilities with existing ones (no duplicates, preserve order)
+            existing_caps = set(device['capabilities'])
+            for cap in new_caps:
+                if cap not in existing_caps:
+                    device['capabilities'].append(cap)
+                    existing_caps.add(cap)
+            
+            logger.debug(f"Updated capabilities for {mac}: {device['capabilities']}")
+        
+        # Always ensure basic capabilities are present if we see evidence of them
+        # This helps with devices that under-report their supportAttributes
+        implied_caps = []
+        
+        # If device reports brightness/color/temp values, it likely supports them
+        if 'brightness' in device['attributes'] and 'brightness' not in device['capabilities']:
+            implied_caps.append('brightness')
+        if 'color' in device['attributes'] and 'color' not in device['capabilities']:
+            implied_caps.append('color') 
+        if 'colorTemperature' in device['attributes'] and 'colorTemperature' not in device['capabilities']:
+            implied_caps.append('colorTemperature')
+        if 'switch' in device['attributes'] and 'switch' not in device['capabilities']:
+            implied_caps.append('switch')
+            
+        # Add implied capabilities
+        for cap in implied_caps:
+            if cap not in device['capabilities']:
+                device['capabilities'].append(cap)
+                logger.debug(f"Added implied capability '{cap}' for {mac}")
+        
+        # Sort capabilities for consistent output (optional)
+        device['capabilities'].sort()
         
         # Store updated device
         self._devices[mac] = device

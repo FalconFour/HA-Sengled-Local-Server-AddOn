@@ -35,12 +35,8 @@ log_timestamp true
 connection_messages true
 
 {% if log_level == 'DEBUG' %}
-# Debug: Log all client connections and disconnections
-log_type debug
-
-# Debug: Show all subscription and message activity
-# This will help us see if bulbs are actually connecting and what they're sending
-verbose true
+# Debug: Enhanced logging for troubleshooting
+# log_type debug is already included above, no need to repeat
 {% endif %}
 
 # ==============================================================================
@@ -97,9 +93,10 @@ bridge_keyfile /ssl/key.key
 bridge_tls_version tlsv1.2
 {% endif %}
 
-# Topic patterns to bridge
+# Topic patterns to bridge  
 # Bridge all wifielement topics (Sengled bulb data)
-topic wifielement/# both 0
+# Use QoS 1 to preserve acknowledgments for commands
+topic wifielement/# both 1
 
 # Bridge settings
 cleansession false

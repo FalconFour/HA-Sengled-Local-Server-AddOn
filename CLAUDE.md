@@ -9,13 +9,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Architecture
 
 ### Core Services
-- **HTTP Server (FastAPI)** - Port 54448 ("light") - Serves bulb provisioning endpoints
+- **HTTP Server (Simple)** - Port 54448 ("light") - Serves bulb provisioning endpoints
 - **MQTT Broker (Mosquitto)** - Port 28527 ("bulbs") - SSL-enabled broker with bridge to HA
 - **Certificate Manager** - Auto-generates CA and server certificates
 - **Web Dashboard** - Real-time monitoring interface
 
 ### Key Components
-- `rootfs/usr/local/src/http_server.py` - FastAPI endpoints with dynamic IP detection
+- `rootfs/usr/local/src/simple_http_server.py` - Simple HTTP server with dynamic IP detection
 - `rootfs/usr/local/src/cert_manager.py` - SSL certificate generation and management  
 - `rootfs/usr/local/src/config_manager.py` - Dynamic Mosquitto configuration from Jinja2 templates
 - `rootfs/usr/local/src/network_utils.py` - Intelligent IP detection for containerized environments
@@ -62,10 +62,10 @@ python3 src/config_manager.py --template mosquitto/mosquitto.conf.j2 \
 
 ## Code Architecture
 
-### HTTP Server (FastAPI)
+### HTTP Server (Simple)  
 - **Endpoints**: `/bimqtt`, `/accessCloud.json`, `/health`, `/status`, `/network`
-- **Features**: Dynamic IP detection, request tracking, CORS support
-- **Monitoring**: Built-in statistics and activity logging
+- **Features**: Dynamic IP detection, malformed URL handling, request tracking, CORS support
+- **Monitoring**: Built-in statistics and activity logging with clear debugging
 
 ### MQTT Infrastructure
 - **Mosquitto Broker**: SSL-enabled on port 28527 with ACL security

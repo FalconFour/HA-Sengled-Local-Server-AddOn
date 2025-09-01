@@ -5,10 +5,32 @@ All notable changes to the Sengled Local Server add-on will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.10] - 2025-09-01
+
+### Changed
+- **Simplified HTTP Server** - Replaced FastAPI with bare-metal Python HTTP server
+  - Handles malformed URLs from bulbs reliably (no more middleware confusion)
+  - Crystal clear request logging shows exactly what bulbs send
+  - Reduced dependencies and improved debuggability
+  - Zero async complexity for maintainability
+
+### Fixed
+- **MQTT ACL Permissions** - Fixed bulb authentication issues
+  - Updated ACL patterns to handle `MAC@wifielement` client IDs
+  - Bulbs can now successfully publish status and consumption data
+- **MQTT Bridge QoS** - Commands now work with proper QoS=1 acknowledgments
+- **Debug Logging** - Enhanced Mosquitto logging when debug mode enabled
+  - Shows connection attempts, subscribe/publish activity
+  - Helps diagnose MQTT connection issues
+
+### Removed
+- FastAPI and uvicorn dependencies (simplified requirements.txt)
+- Redundant debug configuration options
+
 ## [1.0.9] - 2025-08-31
 
 ### Added
-- **MQTT debug logging** - Now we have data, where is it going (if debug enabled)?
+- **MQTT debug logging** - Enhanced diagnostic capabilities when debug enabled
 
 ## [1.0.8] - 2025-08-31
 

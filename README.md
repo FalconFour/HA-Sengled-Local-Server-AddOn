@@ -9,7 +9,7 @@
 - **🌉 Native MQTT Bridge** - Auto-forwards bulb data to your HA MQTT broker
 - **🔒 Auto SSL Certificates** - Generates CA and server certificates for Sengled broker automatically
 - **📊 Real-time Dashboard** - Monitor connections and activity at port 54448
-- **🎯 Zero Configuration** - Works out of the box with intelligent defaults
+- **🎯 Simple HTTP Server** - Lightweight, debuggable server handles malformed bulb requests  
 - **🔧 Highly Configurable** - Fine-tune bridge settings through HA UI
 
 ## 🚀 Quick Start
@@ -33,8 +33,8 @@ During WiFi setup, use your Home Assistant's IP address with these endpoints:
 ### 3. Monitor & Control
 
 - **Dashboard**: Visit `http://YOUR_HA_IP:54448/` for real-time monitoring  
-- **API Docs**: Check `http://YOUR_HA_IP:54448/docs` for full API documentation
 - **Health Check**: Monitor service health at `http://YOUR_HA_IP:54448/health`
+- **Status API**: Get detailed statistics at `http://YOUR_HA_IP:54448/status`
 
 ## ⚙️ Configuration
 
@@ -220,10 +220,9 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
-- [SengledTools](https://github.com/HamzaETTH/SengledTools) project
+- [SengledTools](https://github.com/HamzaETTH/SengledTools) project for reverse engineering
 - Home Assistant add-on developers and documentation writers
-- Mosquitto MQTT broker project
-- FastAPI framework team
+- Mosquitto MQTT broker project for reliable message handling
 
 ---
 

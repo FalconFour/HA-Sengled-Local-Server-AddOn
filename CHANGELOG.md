@@ -5,13 +5,14 @@ All notable changes to the Sengled Local Server add-on will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.6] - 2025-08-31
+## [1.0.8] - 2025-08-31
 
 ### Fixes
 - **Actually Intelligent IP Detection** - Ask HA Supervisor for the IP address
 - **Fix POST to accessCloud.json** - It's POSTed, not GETten
 - **Handle Mangled URLs** - Sengled firmware (maybe only some) mangles HTTP requests
 - **Mosquitto broker config fix** - we don't need to specify 256MB when default & max is 256MB-1byte.
+- **Killing Uvicorns** - woefully complex, overkill, and can't handle mangled URLs. Sorry friend!
 
 ## [1.0.0] - 2025-08-30
 
@@ -43,7 +44,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Multi-architecture Support** - ARM64, ARM7, AMD64, i386
   
 ### Technical Details
-- **FastAPI** HTTP server with automatic OpenAPI documentation
 - **Mosquitto** MQTT broker with dynamic configuration generation
 - **Jinja2** template-based configuration management
 - **Python cryptography** for SSL certificate generation

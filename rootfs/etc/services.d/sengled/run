@@ -62,13 +62,9 @@ fi
 bashio::log.info "✅ Mosquitto MQTT broker started successfully"
 
 # Start HTTP server
-bashio::log.info "Starting HTTP server on port 54448..."
+bashio::log.info "Starting Simple HTTP server on port 54448..."
 cd /usr/local/src
-LOG_LEVEL="${LOG_LEVEL}" python3 -m uvicorn http_server:app \
-    --host 0.0.0.0 \
-    --port 54448 \
-    --log-level "${LOG_LEVEL,,}" \
-    --access-log &
+LOG_LEVEL="${LOG_LEVEL}" python3 simple_http_server.py &
 HTTP_PID=$!
 
 # Wait a moment and check if HTTP server started successfully

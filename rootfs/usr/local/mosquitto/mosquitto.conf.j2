@@ -8,15 +8,15 @@
 # Run as mosquitto user
 user mosquitto
 
-# Process ID file
-pid_file /var/run/mosquitto.pid
+# Process ID file (in writable location)
+pid_file /data/mosquitto/mosquitto.pid
 
 # Persistence settings
 persistence true
 persistence_location /data/mosquitto/
 
 # Logging
-log_dest file /var/log/mosquitto/mosquitto.log
+log_dest file /data/mosquitto/mosquitto.log
 log_dest stdout
 log_type error
 log_type warning
@@ -36,15 +36,13 @@ listener 1883
 protocol mqtt
 allow_anonymous false
 
-# MQTT listener with SSL (for Sengled bulbs)
+# MQTT listener with SSL (for Sengled bulbs) - simplified config
 listener 28527
+allow_anonymous true
 protocol mqtt
 cafile {{ certs_dir }}/ca.crt
 certfile {{ certs_dir }}/server.crt
 keyfile {{ certs_dir }}/server.key
-require_certificate false
-use_identity_as_username false
-allow_anonymous true
 
 # ==============================================================================
 # Security and Access Control
@@ -56,7 +54,7 @@ password_file /data/mosquitto/passwd
 {% endif %}
 
 # Access control list
-acl_file /app/mosquitto/acl.conf
+acl_file /usr/local/mosquitto/acl.conf
 
 # ==============================================================================
 # Bridge Configuration (if enabled)

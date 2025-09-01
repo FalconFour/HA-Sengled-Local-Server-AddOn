@@ -5,6 +5,7 @@ Generates and manages CA and server certificates for MQTT SSL
 """
 import os
 import argparse
+import json
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -124,7 +125,8 @@ class CertificateManager:
             return False
     
     def generate_server_certificate(self, common_name: str = "sengled.local",
-                                   san_list: list = None, validity_days: int = 365) -> bool:
+                                   san_list: list = None, validity_days: int = 365,
+                                   simple_mode: bool = False) -> bool:
         """
         Generate server certificate signed by the CA
         
@@ -202,53 +204,61 @@ class CertificateManager:
             ).add_extension(
                 x509.BasicConstraints(ca=False, path_length=None),
                 critical=True,
-            ).add_extension(
-                x509.KeyUsage(
-                    key_cert_sign=False,
-                    crl_sign=False,
-                    digital_signature=True,
-                    key_encipherment=True,
-                    key_agreement=False,
-                    data_encipherment=False,
-                    content_commitment=False,
-                    encipher_only=False,
-                    decipher_only=False
-                ),
-                critical=True,
-            ).add_extension(
-                x509.ExtendedKeyUsage([
-                    x509.oid.ExtendedKeyUsageOID.SERVER_AUTH,
-                ]),
-                critical=True,
             )
             
-            # Add Subject Alternative Names
-            if san_list is None:
-                san_list = [
-                    "localhost",
-                    "sengled.local",
-                    "127.0.0.1",
-                    "::1"
-                ]
-            
-            # Convert SAN list to x509 objects
-            san_objects = []
-            for san in san_list:
-                try:
-                    # Try to parse as IP address
-                    import ipaddress
-                    ip = ipaddress.ip_address(san)
-                    san_objects.append(x509.IPAddress(ip))
-                except ValueError:
-                    # Treat as DNS name
-                    san_objects.append(x509.DNSName(san))
-            
-            if san_objects:
+            # Simple mode: minimal extensions like OpenSSL basic certs
+            # Complex mode: full modern certificate with all extensions
+            if not simple_mode:
+                logger.info("Adding full certificate extensions for modern clients")
                 cert_builder = cert_builder.add_extension(
-                    x509.SubjectAlternativeName(san_objects),
-                    critical=False,
+                    x509.KeyUsage(
+                        key_cert_sign=False,
+                        crl_sign=False,
+                        digital_signature=True,
+                        key_encipherment=True,
+                        key_agreement=False,
+                        data_encipherment=False,
+                        content_commitment=False,
+                        encipher_only=False,
+                        decipher_only=False
+                    ),
+                    critical=True,
+                ).add_extension(
+                    x509.ExtendedKeyUsage([
+                        x509.oid.ExtendedKeyUsageOID.SERVER_AUTH,
+                    ]),
+                    critical=True,
                 )
-                logger.info(f"Added SAN entries: {san_list}")
+                
+                # Add Subject Alternative Names
+                if san_list is None:
+                    san_list = [
+                        "localhost",
+                        "sengled.local",
+                        "127.0.0.1",
+                        "::1"
+                    ]
+                
+                # Convert SAN list to x509 objects
+                san_objects = []
+                for san in san_list:
+                    try:
+                        # Try to parse as IP address
+                        import ipaddress
+                        ip = ipaddress.ip_address(san)
+                        san_objects.append(x509.IPAddress(ip))
+                    except ValueError:
+                        # Treat as DNS name
+                        san_objects.append(x509.DNSName(san))
+                
+                if san_objects:
+                    cert_builder = cert_builder.add_extension(
+                        x509.SubjectAlternativeName(san_objects),
+                        critical=False,
+                    )
+                    logger.info(f"Added SAN entries: {san_list}")
+            else:
+                logger.info("Using simplified certificate mode for legacy client compatibility")
             
             # Sign the certificate
             server_certificate = cert_builder.sign(
@@ -332,25 +342,27 @@ class CertificateManager:
         return info
     
     def generate_all_certificates(self, common_name: str = "sengled.local", 
-                                san_list: list = None) -> bool:
+                                san_list: list = None, simple_mode: bool = True) -> bool:
         """
         Generate complete certificate chain (CA + server)
         
         Args:
             common_name: Common name for server certificate
             san_list: Subject Alternative Names for server certificate
+            simple_mode: Use simple certificates for legacy client compatibility (default True for Sengled)
             
         Returns:
             bool: True if successful, False otherwise
         """
         logger.info("Starting complete certificate generation...")
+        logger.info(f"Certificate mode: {'Simple (legacy compatible)' if simple_mode else 'Full (modern)'}")
         
         # Generate CA certificate
         if not self.generate_ca_certificate():
             return False
         
         # Generate server certificate
-        if not self.generate_server_certificate(common_name, san_list):
+        if not self.generate_server_certificate(common_name, san_list, simple_mode=simple_mode):
             return False
         
         logger.info("All certificates generated successfully!")
@@ -365,6 +377,8 @@ def main():
     parser.add_argument('--output-dir', required=True, help='Output directory for certificates')
     parser.add_argument('--common-name', default='sengled.local', help='Common name for server certificate')
     parser.add_argument('--san', action='append', help='Subject Alternative Name (can be used multiple times)')
+    parser.add_argument('--simple', action='store_true', default=True, help='Generate simple certificates for legacy compatibility (default)')
+    parser.add_argument('--full', action='store_true', help='Generate full certificates with all extensions')
     parser.add_argument('--verbose', action='store_true', help='Verbose logging')
     
     args = parser.parse_args()
@@ -388,7 +402,9 @@ def main():
     if args.generate:
         # Generate certificates
         san_list = args.san if args.san else None
-        success = cert_manager.generate_all_certificates(args.common_name, san_list)
+        # Use simple mode unless --full is explicitly specified
+        simple_mode = not args.full
+        success = cert_manager.generate_all_certificates(args.common_name, san_list, simple_mode=simple_mode)
         
         if success:
             logger.info("Certificate generation completed successfully")

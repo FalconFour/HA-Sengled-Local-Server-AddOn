@@ -19,6 +19,13 @@ bashio::log.info "Setting up directory structure..."
 mkdir -p "${MOSQUITTO_CONFIG_DIR}" "${CERTS_DIR}" /data/config
 chown -R mosquitto:mosquitto "${MOSQUITTO_CONFIG_DIR}"
 
+# Fix certificate permissions for mosquitto user
+if [[ -d "${CERTS_DIR}" ]]; then
+    chown -R mosquitto:mosquitto "${CERTS_DIR}"
+    chmod 644 "${CERTS_DIR}"/*.crt 2>/dev/null || true
+    chmod 600 "${CERTS_DIR}"/*.key 2>/dev/null || true
+fi
+
 # Activate virtual environment
 export PATH="/opt/venv/bin:$PATH"
 

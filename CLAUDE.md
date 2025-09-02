@@ -234,3 +234,54 @@ Then in service scripts: `export PATH="/opt/venv/bin:$PATH"`
 ```
 
 This guide represents 10+ iterations of trial-and-error to get from "Docker Hell" to successful multi-architecture builds. Follow this template and you'll avoid the pain! 🎯
+
+## 🔐 MQTT Authentication Debugging Guide - Hard-Won Lessons
+
+### The Password File Trap
+**Problem:** Mosquitto with `password_file` enabled requires ALL connections to authenticate, even with `allow_anonymous true`
+**Symptoms:** 
+- Anonymous bulbs connect fine
+- Username-based bulbs get `CONNACK (0, 5)` "not authorised"
+- Removing ACL entirely still fails
+- `allow_anonymous true` has no effect
+
+**Solution:** Remove password file configuration entirely unless you need it for bridge connections
+
+### SDK Username Authentication Issues
+**Problem:** Some Sengled firmware versions send usernames like `?SDK=C&Version=3.0.1` instead of connecting anonymously
+**Root Cause:** Special characters (`?`, `=`, `&`) in usernames break ACL parsing
+**Symptoms:**
+- Bulb connects to open test servers (no ACL)
+- Same bulb rejected by production server with ACL
+- Log shows `u'?SDK=C&Version=3.0.1'` in connection message
+
+**Solution:** Use `pattern` rules instead of `user` rules:
+```
+# Instead of trying to escape usernames:
+user ?SDK=C&Version=3.0.1  # FAILS - special characters
+user "?SDK=C&Version=3.0.1"  # STILL FAILS
+
+# Use pattern rules that apply to ALL users:
+pattern write wifielement/+/status
+pattern read wifielement/+/update
+```
+
+### ACL Pattern vs User Rules
+- **`topic` rules** = Apply only to anonymous connections
+- **`user` rules** = Apply only to specific authenticated usernames  
+- **`pattern` rules** = Apply to ALL connections (anonymous + authenticated)
+
+**Key insight:** Once you define ANY `user` section, anonymous `topic` rules stop working. Use `pattern` rules for universal compatibility.
+
+### Mosquitto Authentication Hierarchy
+1. **Password file present** → All connections must authenticate (even anonymous)
+2. **No password file + ACL** → Anonymous connections use `topic`/`pattern` rules
+3. **Username provided** → Must match `user` section or `pattern` rules apply
+4. **Special characters in username** → Often break ACL parsing, use patterns instead
+
+### Future-Proofing Against Sengled Firmware Variants
+Since Sengled devices use various chips and firmware versions with inconsistent authentication:
+- ✅ Use pattern-based ACL rules for broad compatibility
+- ✅ Remove password file dependency unless absolutely needed
+- ✅ Test with multiple device generations
+- ❌ Don't rely on consistent username formats across firmware versions

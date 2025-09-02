@@ -60,10 +60,8 @@ keyfile {{ certs_dir }}/server.key
 # Security and Access Control
 # ==============================================================================
 
-# Password file (if using authentication)
-{% if mqtt_username and mqtt_password %}
-password_file /data/mosquitto/passwd
-{% endif %}
+# Password file removed - only using ACL-based access control
+# Bridge authentication is handled separately in bridge configuration
 
 # Access control list
 acl_file /usr/local/mosquitto/acl.conf

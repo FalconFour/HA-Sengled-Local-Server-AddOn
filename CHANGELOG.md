@@ -5,6 +5,15 @@ All notable changes to the Sengled Local Server add-on will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.16] - 2025-09-02
+
+### Fixed
+- **MQTT Authentication** - Resolved SDK-enabled bulb connection issues
+  - Removed password file dependency that was blocking non-anonymous connections
+  - Switched to pattern-based ACL rules for universal bulb compatibility
+  - Fixed authentication failures for bulbs sending SDK usernames (e.g. `?SDK=C&Version=3.0.1`)
+  - Future-proofed against Sengled's various firmware authentication schemes
+
 ## [1.0.15] - 2025-09-01
 
 ### Fixed

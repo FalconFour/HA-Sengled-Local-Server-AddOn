@@ -1,5 +1,24 @@
 # 🔦 Sengled Local Server - Home Assistant Add-on 💡
 
+> [!IMPORTANT]  
+> ⚠️ **Project Status: End of Maintenance**
+>
+> As of **December 2025**, this project is no longer actively maintained.
+>
+> This was the result of a quick flash of inspiration, hoping to inspire Sengled owners and developers to bring their devices local. Unfortunately, the project didn't take off and the flash of inspiration subsided as I moved my WiFi ESP-based devices to Tasmota. This system never fully worked properly or easily, and Sengled's servers came back online. Thus, this project is unmaintained.
+>
+> **What this means:**
+> - ❌ No further feature development
+> - ❌ No bug fixes or updates
+> - ❌ No guaranteed support
+>
+> The repository will remain available for reference and forking.
+>
+> 💡 I would be very happy to see this project continued by the community.  
+> If you plan to fork it and continue development: **may the best fork prevail.**
+>
+> Thank you to everyone who used, tested, and contributed to this project ❤️
+
 **Keep your Sengled bulbs local and secure!** This add-on provides the essential HTTP and MQTT infrastructure needed to operate Sengled WiFi bulbs without cloud connectivity, seamlessly integrating with your Home Assistant setup.
 
 ## ✨ Features
